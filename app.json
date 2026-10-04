@@ -13,11 +13,18 @@
     "backgroundColor": "#FFF7E8",
     "android": {
       "package": "com.yourstudio.outbound",
+      "versionCode": 1,
       "edgeToEdgeEnabled": true
     },
     "plugins": [
       "expo-router",
-      ["expo-audio", { "microphonePermission": false, "recordAudioAndroid": false }]
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

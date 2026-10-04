@@ -13,7 +13,9 @@ export const CoinIcon = memo(function CoinIcon({ size = 22, color = colors.coin 
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24">
       <Circle cx={12} cy={12} r={10} fill={color} stroke={colors.ink} strokeWidth={STROKE} />
-      <Rect x={10} y={6.5} width={4} height={11} fill={colors.ink} />
+      <Circle cx={12} cy={12} r={6.6} fill={colors.coinShade} stroke={colors.ink} strokeWidth={1.4} />
+      <Rect x={10.6} y={8.2} width={2.8} height={7.6} rx={1} fill={colors.ink} />
+      <Path d="M5.6 9.6 A7 7 0 0 1 9.6 5.4" fill="none" stroke={colors.surface} strokeWidth={1.8} strokeLinecap="round" />
     </Svg>
   );
 });
@@ -139,6 +141,28 @@ export const GearIcon = memo(function GearIcon({ size = 22, color = colors.succe
       <Circle cx={12} cy={12} r={8.5} fill="none" stroke={colors.ink} strokeWidth={5} strokeDasharray="3.34 3.34" />
       <Circle cx={12} cy={12} r={7} fill={color} stroke={colors.ink} strokeWidth={STROKE} />
       <Circle cx={12} cy={12} r={2.6} fill={colors.ink} />
+    </Svg>
+  );
+});
+
+/** The Journey: a right-angled route ending in an arrowhead. */
+export const RouteIcon = memo(function RouteIcon({ size = 22, color = colors.info }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Path d="M5 21 V14 H14 V7 H17" fill="none" stroke={colors.ink} strokeWidth={6} strokeLinecap="round" strokeLinejoin="round" />
+      <Path d="M5 21 V14 H14 V7 H17" fill="none" stroke={color} strokeWidth={3} strokeLinecap="round" strokeLinejoin="round" />
+      <Polygon points="16,2.5 22.5,7 16,11.5" fill={color} stroke={colors.ink} strokeWidth={STROKE} strokeLinejoin="round" />
+    </Svg>
+  );
+});
+
+export const HammerIcon = memo(function HammerIcon({ size = 22, color = colors.surface }: IconProps) {
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Rect x={10.4} y={9} width={3.2} height={13} rx={1} fill="#B5703A" stroke={colors.ink} strokeWidth={STROKE} />
+      <Rect x={3.5} y={3} width={17} height={7} rx={1.2} fill={color} stroke={colors.ink} strokeWidth={STROKE} />
+      <Rect x={3.5} y={3} width={3.4} height={7} fill={colors.ink} />
+      <Rect x={17.1} y={3} width={3.4} height={7} fill={colors.ink} />
     </Svg>
   );
 });

@@ -14,6 +14,8 @@ export const palette = {
   red: '#FF4D4D',
   sand: '#E8DCC2',
   stone: '#B9AE98',
+  gold: '#F2B705',
+  lemon: '#FFEC8A',
 } as const;
 
 /** Semantic roles. Components use these, not raw palette values. */
@@ -28,9 +30,11 @@ export const colors = {
   success: palette.green,
   danger: palette.red,
   coin: palette.yellow,
+  coinShade: palette.gold,
   heart: palette.red,
-  board: palette.paper,
-  gridDot: palette.sand,
+  /** Warm checkerboard play surface: the genre is all dark/neon, Outbound is paper and ink. */
+  board: '#FBF1DC',
+  boardAlt: '#F2E2C0',
   disabled: palette.sand,
   disabledInk: palette.stone,
 } as const;

@@ -6,10 +6,11 @@ export const DEFAULT_GAME_RULES: GameRules = {
   blockedTapCostsLife: true,
 };
 
-/** Penalty = mistakes * mistakeWeight + hints * hintWeight. */
+/** Penalty = mistakes * mistakeWeight + hints * hintWeight + hammers * hammerWeight. */
 export const STAR_RULES = {
   mistakeWeight: 1,
   hintWeight: 1,
+  hammerWeight: 1,
   threeStarMaxPenalty: 0,
   twoStarMaxPenalty: 2,
 } as const;
@@ -28,5 +29,12 @@ export const REWARD_TABLE: RewardTable = {
   replayMultiplier: 0.2,
 };
 
-/** 0 = free. Hook point for the coin economy / rewarded hints later. */
-export const HINT_COIN_COST = 0;
+/** Coin prices of the in-level boosts. */
+export const BOOST_COSTS = {
+  hint: 15,
+  hammer: 40,
+  life: 30,
+} as const;
+
+/** A new player's purse, so boosts are usable from level 1. */
+export const STARTING_COINS = 100;

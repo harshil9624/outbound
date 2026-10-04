@@ -8,6 +8,9 @@ const SOURCES = {
   win: require('../../assets/sounds/win.wav'),
   hint: require('../../assets/sounds/hint.wav'),
   tap: require('../../assets/sounds/tap.wav'),
+  coin: require('../../assets/sounds/coin.wav'),
+  smash: require('../../assets/sounds/smash.wav'),
+  life: require('../../assets/sounds/life.wav'),
 } as const;
 
 export type SoundName = keyof typeof SOURCES;

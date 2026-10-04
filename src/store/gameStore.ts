@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import type { GameState, Level, LevelResult, TapResult } from '@/types';
-import { applyHint, canUndo, createGameState, processArrowTap, undoMove } from '@/game/engine';
+import { addLife, applyHint, canAddLife, createGameState, processArrowTap, smashArrow } from '@/game/engine';
 
 /** Increments on every blocked tap so the same arrow can bump twice in a row. */
 export interface BumpFeedback {
@@ -15,8 +15,12 @@ interface GameData {
   game: GameState | null;
   /** Removed from the puzzle already, still visible while their exit animation runs. */
   exitingIds: string[];
+  /** Subset of exitingIds that leave by hammer (smash) instead of sliding out. */
+  smashingIds: string[];
   hintArrowId: string | null;
   bump: BumpFeedback | null;
+  /** Hammer boost armed: the next arrow tap smashes instead of sliding. */
+  hammerArmed: boolean;
   /** Survives endSession so the Win screen can read it. */
   lastResult: LevelResult | null;
 }
@@ -25,18 +29,30 @@ interface GameActions {
   startLevel: (level: Level) => void;
   restart: () => void;
   tapArrow: (arrowId: string) => TapResult | null;
+  /** Hammer: removes the arrow regardless of blockers and disarms. Returns false if not allowed. */
+  smash: (arrowId: string) => boolean;
+  setHammerArmed: (armed: boolean) => void;
   completeExit: (arrowId: string) => void;
-  undo: () => boolean;
   showHint: () => string | null;
+  /** +1 heart (also revives a lost game). Returns false if not allowed. */
+  addLife: () => boolean;
   setLastResult: (result: LevelResult) => void;
   endSession: () => void;
 }
 
 export type GameStore = GameData & GameActions;
 
-const EMPTY_SESSION = { level: null, game: null, exitingIds: [], hintArrowId: null, bump: null };
+const EMPTY_SESSION = {
+  level: null,
+  game: null,
+  exitingIds: [],
+  smashingIds: [],
+  hintArrowId: null,
+  bump: null,
+  hammerArmed: false,
+};
 
-/** Thin adapter: every rule decision is delegated to src/game/engine. Not persisted. */
+/** Thin adapter: every rule decision is delegated to src/game/engine. Not persisted. Coins are charged by the caller. */
 export const useGameStore = create<GameStore>()((set, get) => ({
   ...EMPTY_SESSION,
   lastResult: null,
@@ -69,15 +85,32 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     return result;
   },
 
-  completeExit: (arrowId) =>
-    set((s) => (s.exitingIds.includes(arrowId) ? { exitingIds: s.exitingIds.filter((id) => id !== arrowId) } : s)),
-
-  undo: () => {
-    const { game, exitingIds } = get();
-    if (!game || exitingIds.length > 0 || !canUndo(game)) return false;
-    set({ game: undoMove(game), hintArrowId: null });
+  smash: (arrowId) => {
+    const { game, exitingIds, smashingIds, hintArrowId } = get();
+    if (!game || exitingIds.includes(arrowId)) return false;
+    const next = smashArrow(game, arrowId);
+    if (!next) return false;
+    set({
+      game: next,
+      exitingIds: [...exitingIds, arrowId],
+      smashingIds: [...smashingIds, arrowId],
+      hintArrowId: hintArrowId === arrowId ? null : hintArrowId,
+      hammerArmed: false,
+    });
     return true;
   },
+
+  setHammerArmed: (armed) => set({ hammerArmed: armed }),
+
+  completeExit: (arrowId) =>
+    set((s) =>
+      s.exitingIds.includes(arrowId)
+        ? {
+            exitingIds: s.exitingIds.filter((id) => id !== arrowId),
+            smashingIds: s.smashingIds.filter((id) => id !== arrowId),
+          }
+        : s,
+    ),
 
   showHint: () => {
     const { game, hintArrowId } = get();
@@ -87,6 +120,13 @@ export const useGameStore = create<GameStore>()((set, get) => ({
     const { state, arrowId } = applyHint(game);
     if (arrowId) set({ game: state, hintArrowId: arrowId });
     return arrowId;
+  },
+
+  addLife: () => {
+    const { game } = get();
+    if (!game || !canAddLife(game)) return false;
+    set({ game: addLife(game) });
+    return true;
   },
 
   setLastResult: (result) => set({ lastResult: result }),

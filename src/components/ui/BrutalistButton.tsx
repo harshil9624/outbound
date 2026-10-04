@@ -14,6 +14,8 @@ interface BrutalistButtonProps {
   color?: SurfaceColor;
   size?: ButtonSize;
   disabled?: boolean;
+  /** Looks disabled but still receives presses (so the action can explain why it can't run). */
+  dimmed?: boolean;
   accessibilityLabel?: string;
   /** Played on press while Sound is on. null = silent (the action plays its own sound). */
   sound?: SoundName | null;
@@ -29,12 +31,14 @@ export function BrutalistButton({
   color = 'primary',
   size = 'md',
   disabled = false,
+  dimmed = false,
   accessibilityLabel,
   sound = 'tap',
   style,
 }: BrutalistButtonProps) {
   const shadow = SHADOW_FOR_SIZE[size];
   const iconOnly = !label;
+  const looksDisabled = disabled || dimmed;
   return (
     <Pressable
       onPress={() => {
@@ -55,13 +59,13 @@ export function BrutalistButton({
               styles.face,
               cornerStyles.sm,
               iconOnly ? squareBySize[size] : padBySize[size],
-              disabled ? styles.faceDisabled : surfaceStyles[color],
+              looksDisabled ? styles.faceDisabled : surfaceStyles[color],
               pressed && !disabled && pressedBySize[shadow],
             ]}
           >
             {icon}
             {label ? (
-              <Text style={[textStyles.button, labelBySize[size], disabled && styles.labelDisabled]}>{label}</Text>
+              <Text style={[textStyles.button, labelBySize[size], looksDisabled && styles.labelDisabled]}>{label}</Text>
             ) : null}
           </View>
         </>

@@ -84,6 +84,22 @@ const SOUNDS: Record<string, Note[]> = {
   ],
   // Short soft blip for buttons and tabs.
   tap: [{ from: 880, to: 660, ms: 45, gain: 0.4 }],
+  // Hammer: a short crunch then a heavy thud.
+  smash: [
+    { from: 220, to: 70, ms: 70, wave: 'square', gain: 0.3 },
+    { from: 130, to: 40, ms: 210, gain: 0.9 },
+  ],
+  // Extra heart: bright rising three notes.
+  life: [
+    { from: 659, ms: 80, wave: 'triangle' },
+    { from: 880, ms: 80, wave: 'triangle' },
+    { from: 1319, ms: 240, wave: 'triangle', gain: 0.65 },
+  ],
+  // Classic two-note coin "ching".
+  coin: [
+    { from: 988, ms: 55, wave: 'square', gain: 0.22 },
+    { from: 1319, ms: 190, wave: 'square', gain: 0.22 },
+  ],
 };
 
 for (const [name, notes] of Object.entries(SOUNDS)) {

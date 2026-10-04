@@ -36,3 +36,24 @@ export function getStreakDays(streak: StreakState, today: string, windowDays = 7
     return { day, played: back >= 0 && back < active };
   });
 }
+
+/** Rewards for reaching a streak length (paid once each, based on the best streak). */
+export const STREAK_MILESTONES: readonly { days: number; coins: number }[] = [
+  { days: 3, coins: 25 },
+  { days: 7, coins: 60 },
+  { days: 14, coins: 120 },
+  { days: 30, coins: 250 },
+  { days: 60, coins: 500 },
+  { days: 100, coins: 1000 },
+];
+
+/** Milestones the player has reached but not yet collected. */
+export function claimableMilestones(best: number, claimed: readonly number[]): number[] {
+  return STREAK_MILESTONES.filter((m) => best >= m.days && !claimed.includes(m.days)).map((m) => m.days);
+}
+
+/** The day keys covered by the streak (used once to backfill play history). */
+export function streakDayKeys(streak: StreakState): string[] {
+  if (!streak.lastPlayedDay) return [];
+  return Array.from({ length: streak.count }, (_, i) => addDays(streak.lastPlayedDay as string, -i)).reverse();
+}

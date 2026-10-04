@@ -72,24 +72,30 @@ src/
     _layout.tsx           Stack, safe area, status bar
     index.tsx             Splash → replace('/home')
     (tabs)/               Tabs with the rounded BottomNav panel
-      home.tsx, challenges.tsx (level select), streak.tsx, settings.tsx
+      home.tsx, journey.tsx (the level map), streak.tsx, settings.tsx
     level/[levelId].tsx
     win/index.tsx
   components/
     ui/                   BrutalistButton, BrutalistCard, HardShadow, CoinDisplay,
                           StreakWidget, DailyChallengeWidget, Decorations, Screen
     game/                 GameBoard, ArrowPath, BoardGrid, LevelHeader, LivesDisplay,
-                          DifficultyBadge, GameControls, UndoButton, HintButton, GameOverOverlay
+                          DifficultyBadge, GameControls, BoostButton, AnimalFace, ArrowFace,
+                          MoodHeart, GameOverOverlay
     win/                  WinCard, StarRating, RewardDisplay, NextLevelButton
     icons/                small SVG glyphs (no icon font dependency)
     nav/                  BottomNav (custom tab bar for the (tabs) group)
   game/                   NO React imports anywhere in here
     engine/               createGameState, canArrowExit, processArrowTap, getArrowExitPath,
-                          undoMove, findHint, checkWin, calculateStars, calculateReward,
+                          undoMove, findHint, smashArrow, addLife, checkWin, calculateStars,
+                          calculateReward,
                           geometry, occupancy
     layout/               boardLayout (px math), arrowGeometry (SVG paths), hitTest
-    levels/               level01–08, authoring helper, levelProvider
+    levels/               level01–08 (handcrafted), generated.ts (9–70), authoring helper, levelProvider
+    generation/           generateLevel: random-walk arrows → make solvable → colour → score
+    journey/              chapters, layoutChapter (route patterns), progress (unlock order),
+                          mapGeometry (grid → px)
     validation/           validateLevel, solveLevel
+    analysis/             arrowShape, levelMetrics (difficulty model, see LEVEL_DESIGN_BIBLE.md)
     session/              buildLevelResult (state → stars → reward)
     progression/          streak
   hooks/useLevelSession.ts  orchestrates stores ↔ engine for one level
@@ -122,7 +128,7 @@ One addition to your suggested structure: `src/hooks/`. The level screen needs c
 |---|---|---|
 | `playerStore` | yes (v1) | coins, currentLevel, unlockedLevel, streak `{count, best, lastPlayedDay}`, completedLevels, best stars per level. Actions: `addCoins`, `spendCoins`, `setCurrentLevel`, `applyLevelResult`. |
 | `settingsStore` | yes (v1) | soundEnabled, vibrationEnabled, reducedMotion |
-| `gameStore` | **no** | `level`, `game` (the engine's `GameState`: arrows, lives, moves, status, undo history), `exitingIds`, `hintArrowId`, `bump`, `lastResult` |
+| `gameStore` | **no** | `level`, `game` (the engine's `GameState`: arrows, lives, moves, status, history), `exitingIds`, `smashingIds`, `hintArrowId`, `bump`, `hammerArmed`, `lastResult` |
 
 `gameStore` is a thin adapter: every rule decision is a call into `src/game/engine`.
 
@@ -144,7 +150,7 @@ Cloud save later means adding a sync layer that reads and writes the same persis
 
 `/` (splash) → `replace('/home')` → `push('/level/3')` → on win `replace('/win')` → `replace('/level/4')` or `replace('/home')`.
 
-`/home`, `/challenges`, `/streak` and `/settings` live in the `(tabs)` group, which sits inside the root Stack. Level and win screens are pushed above the tabs, so the bottom panel never shows during play.
+`/home`, `/journey`, `/streak` and `/settings` live in the `(tabs)` group, which sits inside the root Stack. Level and win screens are pushed above the tabs, so the bottom panel never shows during play.
 
 The win and level screens use `replace`, so Android back never returns to a finished board. An unknown `levelId` redirects home.
 
@@ -164,7 +170,12 @@ All engine functions are pure: they take a state and return a new one.
 - **Hints are trivial:** any currently free arrow is always a safe move (`findHint`).
 - **Solving is greedy:** a level is solvable exactly when repeatedly removing any free arrow clears the board (`solveLevel`). This runs in roughly linear time, so it can validate thousands of procedurally generated levels.
 
-**Undo.** `undoMove` restores the last removed arrow in authoring order. Lives are not refunded.
+**Boosts.** Paid with coins (`BOOST_COSTS` in `constants/gameConfig.ts`); `useLevelSession` charges only after the engine accepts the action.
+- **Hint** highlights a free arrow (`applyHint`).
+- **Hammer** arms on tap; the next arrow tap removes that arrow even if blocked (`smashArrow`).
+- **+1 Heart** refills one heart, and on the Game Over screen revives the level (`addLife`).
+
+Hints and hammers count against stars like mistakes. `undoMove` still exists in the engine but has no button.
 
 **Scoring.**
 - `calculateStars` uses penalty = mistakes + hints: 0 gives 3 stars, up to 2 gives 2, more gives 1.
@@ -176,7 +187,7 @@ All tuning values live in `constants/gameConfig.ts`.
 
 **Layout.** `computeBoardLayout` fits any board size into whatever space `onLayout` reports. Cell size is capped so 3×3 boards don't look bloated. All arrow geometry stays inside the arrow's own cells, so what you see matches what you can tap.
 
-**Drawing.** Each `ArrowPath` draws three SVG paths: a black outline, a colored body on top, and a triangle head with a black border.
+**Drawing.** The board is dark navy. Each `ArrowPath` draws the body as three SVG paths: a black outline, the colored body and a thin white gloss line. The head is an `ArrowFace`: a view layered over the SVG showing an `AnimalFace` (cat, bear, bunny, frog, pig or panda, assigned by arrow order) with a pointer for the direction and eyes that look the same way. Faces look scared while the hammer is armed and wince after a blocked tap. Body and face share one `ArrowMotion` (shared values made with `makeMutable`), so they always move together.
 
 **Exit animation — the snake slide.** The body path is extended straight out of the board past the head. Its dash length is set to exactly the body length.
 
@@ -246,6 +257,19 @@ Tap on board
 | Feature | Where it plugs in |
 |---|---|
 | New mechanics | `ArrowKind`, plus a branch in `checkArrowExit` and `processArrowTap` |
-| Rewarded hints / economy | `HINT_COIN_COST` and `spendCoins`, in `onHint` |
+| New boosts / economy | `BOOST_COSTS`, `spendCoins`, and a handler in `useLevelSession` |
 | Achievements / analytics | Subscribe to `TapResult` and `LevelResult`; both are already discrete events |
 | Daily challenge | A new `LevelProvider` plus a route |
+
+## Journey map
+
+The level map (`/journey`) draws the game's progress as one long Outbound arrow climbing through chapters.
+
+- **Data-driven.** `game/journey/chapters.ts` is the only authored part: each chapter lists its levels, colour, mascot and route style. `layoutChapter` turns that into grid positions and an orthogonal route (pure, deterministic, tested). Levels that don't exist yet aren't drawn, so chapters can be authored ahead of content.
+- **Unlocking follows the journey order** (`nextMainLevel`), not `levelId + 1`. Bonus levels sit on a side spur, unlock by chapter stars, and never advance the main route.
+- **Animations come from a diff.** `playerStore.mapSeen` records what the map last showed. On focus, `useJourney` compares it with real progress to play stars dropping in, the route filling, the next tile unlocking and the mascot moving on, then calls `markMapSeen`.
+- **Scales.** The map is an inverted `FlatList` with one item per chapter, so only chapters near the screen are built. Laying out 1,000+ levels takes about 10 ms.
+
+## Generated levels
+
+Levels 9–70 come from `bun run generate-levels`. `scripts/generateLevels.ts` holds one plan per chapter (board size, arrow count, density, shape families, target score, minimum bends). `generateLevel` grows each chapter's signature shapes first, fills gaps with simpler arrows, removes arrows caught in waiting loops until the level is solvable, colours touching arrows differently, and keeps the attempt closest to the target difficulty. Output is deterministic and is checked in as `src/game/levels/generated.ts`; every level is validated by the test suite.

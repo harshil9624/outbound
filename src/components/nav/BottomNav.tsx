@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { playSound } from '@/audio/sounds';
-import { FlameIcon, GearIcon, HomeIcon, TrophyIcon } from '@/components/icons';
+import { FlameIcon, GearIcon, HomeIcon, RouteIcon } from '@/components/icons';
 import { HardShadow, cornerStyles } from '@/components/ui/HardShadow';
 import { surfaceStyles } from '@/components/ui/surfaceStyles';
 import { borderWidths, colors, spacing, textStyles, type SurfaceColor } from '@/theme';
@@ -17,7 +17,7 @@ interface TabSpec {
 /** Keyed by route file name in src/app/(tabs). Order comes from the Tabs layout. */
 export const TAB_SPECS: Record<string, TabSpec> = {
   home: { label: 'HOME', Icon: HomeIcon, color: 'primary' },
-  challenges: { label: 'CHALLENGES', Icon: TrophyIcon, color: 'info' },
+  journey: { label: 'JOURNEY', Icon: RouteIcon, color: 'info' },
   streak: { label: 'STREAK', Icon: FlameIcon, color: 'accent' },
   settings: { label: 'SETTINGS', Icon: GearIcon, color: 'success' },
 };

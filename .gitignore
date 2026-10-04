@@ -5,3 +5,10 @@ ios/
 dist/
 *.log
 expo-env.d.ts
+
+# Build outputs and signing secrets
+*.apk
+*.aab
+*.jks
+*.keystore
+.env*.local

@@ -33,6 +33,7 @@ export function createGameState(level: Level, rules: GameRules = DEFAULT_GAME_RU
     moves: 0,
     mistakes: 0,
     hintsUsed: 0,
+    hammersUsed: 0,
     undosUsed: 0,
     status: 'playing',
     history: [],

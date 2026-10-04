@@ -2,7 +2,6 @@ import { useCallback } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Redirect, useLocalSearchParams, useRouter } from 'expo-router';
 import { useLevelSession } from '@/hooks/useLevelSession';
-import { usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { GameBoard } from '@/components/game/GameBoard';
 import { GameControls } from '@/components/game/GameControls';
@@ -19,7 +18,6 @@ export default function LevelRoute() {
   const onWin = useCallback(() => router.replace('/win'), [router]);
   const session = useLevelSession(levelId, onWin);
 
-  const coins = usePlayerStore((s) => s.coins);
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   const goHome = useCallback(() => router.replace('/home'), [router]);
 
@@ -32,7 +30,7 @@ export default function LevelRoute() {
       <LevelHeader
         levelId={game.levelId}
         difficulty={game.difficulty}
-        coins={coins}
+        coins={session.coins}
         lives={game.lives}
         maxLives={game.maxLives}
         onBack={goHome}
@@ -41,8 +39,10 @@ export default function LevelRoute() {
         <GameBoard
           game={game}
           exitingIds={session.exitingIds}
+          smashingIds={session.smashingIds}
           hintArrowId={session.hintArrowId}
           bump={session.bump}
+          hammerArmed={session.hammerArmed}
           reducedMotion={reducedMotion}
           interactive={session.interactive}
           onTapArrow={session.onTapArrow}
@@ -50,13 +50,24 @@ export default function LevelRoute() {
         />
       </View>
       <GameControls
-        canUndo={session.canUndo}
         canHint={session.canHint}
-        onUndo={session.onUndo}
+        canHammer={session.canHammer}
+        canBuyLife={session.canBuyLife}
+        hammerArmed={session.hammerArmed}
+        notice={session.notice}
         onHint={session.onHint}
+        onHammer={session.onHammer}
+        onBuyLife={session.onBuyLife}
         onRestart={session.onRestart}
       />
-      {game.status === 'lost' ? <GameOverOverlay onRetry={session.onRestart} onHome={goHome} /> : null}
+      {game.status === 'lost' ? (
+        <GameOverOverlay
+          canBuyLife={session.canBuyLife}
+          onBuyLife={session.onBuyLife}
+          onRetry={session.onRestart}
+          onHome={goHome}
+        />
+      ) : null}
     </Screen>
   );
 }

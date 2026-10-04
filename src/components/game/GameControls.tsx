@@ -1,29 +1,72 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { RestartIcon } from '@/components/icons';
-import { BrutalistButton } from '@/components/ui/BrutalistButton';
+import { BulbIcon, HammerIcon, HeartIcon, RestartIcon } from '@/components/icons';
+import { BOOST_COSTS } from '@/constants/gameConfig';
 import { spacing } from '@/theme';
-import { HintButton } from './HintButton';
-import { UndoButton } from './UndoButton';
+import { BoostButton } from './BoostButton';
+import { BoostNotice } from './BoostNotice';
 
 interface GameControlsProps {
-  canUndo: boolean;
   canHint: boolean;
-  onUndo: () => void;
+  canHammer: boolean;
+  canBuyLife: boolean;
+  hammerArmed: boolean;
+  /** Why the last boost tap did nothing. */
+  notice: { text: string; token: number } | null;
   onHint: () => void;
+  onHammer: () => void;
+  onBuyLife: () => void;
   onRestart: () => void;
 }
 
-export const GameControls = memo(function GameControls({ canUndo, canHint, onUndo, onHint, onRestart }: GameControlsProps) {
+/** Restart is free; Hint, Hammer and +1 Heart cost coins and disable when unaffordable. */
+export const GameControls = memo(function GameControls({
+  canHint,
+  canHammer,
+  canBuyLife,
+  hammerArmed,
+  notice,
+  onHint,
+  onHammer,
+  onBuyLife,
+  onRestart,
+}: GameControlsProps) {
   return (
     <View style={styles.row}>
-      <UndoButton onPress={onUndo} disabled={!canUndo} />
-      <BrutalistButton icon={<RestartIcon />} onPress={onRestart} color="surface" size="md" accessibilityLabel="Restart level" />
-      <HintButton onPress={onHint} disabled={!canHint} />
+      <BoostNotice notice={notice} />
+      <BoostButton icon={<RestartIcon size={28} />} label="RESTART" color="surface" disabled={false} onPress={onRestart} />
+      <BoostButton
+        icon={<BulbIcon size={30} />}
+        label="HINT"
+        cost={BOOST_COSTS.hint}
+        color="primary"
+        disabled={!canHint}
+        sound={null}
+        onPress={onHint}
+      />
+      <BoostButton
+        icon={<HammerIcon size={30} />}
+        label="HAMMER"
+        cost={BOOST_COSTS.hammer}
+        color="info"
+        disabled={!canHammer}
+        active={hammerArmed}
+        sound={null}
+        onPress={onHammer}
+      />
+      <BoostButton
+        icon={<HeartIcon size={30} />}
+        label="+1 HEART"
+        cost={BOOST_COSTS.life}
+        color="accent"
+        disabled={!canBuyLife}
+        sound={null}
+        onPress={onBuyLife}
+      />
     </View>
   );
 });
 
 const styles = StyleSheet.create({
-  row: { flexDirection: 'row', justifyContent: 'center', alignItems: 'center', gap: spacing.md, paddingTop: spacing.md },
+  row: { flexDirection: 'row', justifyContent: 'space-evenly', alignItems: 'flex-start', paddingTop: spacing.lg },
 });

@@ -34,6 +34,8 @@ export interface GameState {
   moves: number;
   mistakes: number;
   hintsUsed: number;
+  /** Arrows removed with the hammer boost. */
+  hammersUsed: number;
   undosUsed: number;
   status: GameStatus;
   history: MoveRecord[];

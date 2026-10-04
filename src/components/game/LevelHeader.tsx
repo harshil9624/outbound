@@ -33,7 +33,7 @@ export const LevelHeader = memo(function LevelHeader({
           <Text style={textStyles.heading}>Level {levelId}</Text>
           <DifficultyBadge difficulty={difficulty} />
         </View>
-        <CoinDisplay coins={coins} />
+        <CoinDisplay coins={coins} showSpend />
       </View>
       <View style={styles.livesRow}>
         <LivesDisplay lives={lives} maxLives={maxLives} />

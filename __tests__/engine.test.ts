@@ -4,6 +4,8 @@ import { canArrowExit } from '../src/game/engine/canArrowExit';
 import { processArrowTap } from '../src/game/engine/processArrowTap';
 import { undoMove } from '../src/game/engine/undoMove';
 import { findHint } from '../src/game/engine/findHint';
+import { smashArrow } from '../src/game/engine/smashArrow';
+import { addLife, canAddLife } from '../src/game/engine/addLife';
 import { checkWin } from '../src/game/engine/checkWin';
 import { calculateStars } from '../src/game/engine/calculateStars';
 import { calculateReward } from '../src/game/engine/calculateReward';
@@ -77,11 +79,34 @@ describe('undo + hint', () => {
   });
 });
 
+describe('boosts', () => {
+  it('hammer removes a blocked arrow and can win the level', () => {
+    const s = smashArrow(createGameState(level), 'b')!;
+    expect(s.remainingIds).toEqual(['a']);
+    expect(s.hammersUsed).toBe(1);
+    expect(s.mistakes).toBe(0);
+    const won = smashArrow(s, 'a')!;
+    expect(won.status).toBe('won');
+    expect(smashArrow(won, 'a')).toBeNull();
+  });
+  it('extra life refills one heart and revives a lost game', () => {
+    const full = createGameState(level);
+    expect(canAddLife(full)).toBe(false);
+    let s = full;
+    for (let i = 0; i < 3; i++) s = processArrowTap(s, 'b').state;
+    expect(s.status).toBe('lost');
+    const revived = addLife(s);
+    expect(revived.lives).toBe(1);
+    expect(revived.status).toBe('playing');
+  });
+});
+
 describe('stars + reward', () => {
   it('scores stars by penalty', () => {
     expect(calculateStars({ mistakes: 0, hintsUsed: 0 })).toBe(3);
     expect(calculateStars({ mistakes: 1, hintsUsed: 1 })).toBe(2);
     expect(calculateStars({ mistakes: 3, hintsUsed: 0 })).toBe(1);
+    expect(calculateStars({ mistakes: 0, hintsUsed: 0, hammersUsed: 1 })).toBe(2);
   });
   it('first clears pay more than replays', () => {
     const first = calculateReward({ difficulty: 'normal', stars: 3, isFirstClear: true });
@@ -135,5 +160,20 @@ describe('streak', () => {
     ]);
     expect(days.map((d) => d.played)).toEqual([false, false, false, true, true, true, false]);
     expect(getStreakDays(s, '2026-09-05').some((d) => d.played)).toBe(false);
+  });
+});
+
+describe('streak rewards and calendar', () => {
+  it('pays each reached milestone once and backfills streak days', async () => {
+    const { claimableMilestones, streakDayKeys } = await import('../src/game/progression/streak');
+    expect(claimableMilestones(8, [])).toEqual([3, 7]);
+    expect(claimableMilestones(8, [3])).toEqual([7]);
+    expect(streakDayKeys({ count: 3, best: 3, lastPlayedDay: '2026-09-01' })).toEqual(['2026-08-30', '2026-08-31', '2026-09-01']);
+  });
+  it('lays out a month in Sunday-first weeks', async () => {
+    const { monthGrid } = await import('../src/game/progression/calendar');
+    const oct = monthGrid(2026, 9); // October 2026 starts on a Thursday
+    expect(oct[0]).toEqual([null, null, null, null, '2026-10-01', '2026-10-02', '2026-10-03']);
+    expect(oct.flat().filter(Boolean)).toHaveLength(31);
   });
 });
