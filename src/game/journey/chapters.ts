@@ -3,7 +3,7 @@ import type { ChapterDef } from './types';
 const range = (from: number, to: number) => Array.from({ length: to - from + 1 }, (_, i) => from + i);
 
 /**
- * The Outbound Journey. Each chapter teaches one way of seeing the board (LEVEL_DESIGN_BIBLE.md §3)
+ * The ArrowZing Journey. Each chapter teaches one way of seeing the board (LEVEL_DESIGN_BIBLE.md §3)
  * and its route on the map is drawn in that chapter's signature shape.
  * 12 regular levels + 1 challenge + 1 master gate per chapter; the bonus side level is optional.
  * Levels that don't exist yet simply aren't drawn, so chapters can be authored ahead of content.
@@ -14,7 +14,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'First Exit',
     lesson: 'An arrow leaves only when its lane is clear.',
     color: 'yellow',
-    mascot: 'cat',
+    mascot: 'lion',
     signature: 'straight',
     routeStyle: 'runs',
     levelIds: range(1, 14),
@@ -25,7 +25,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'The Queue',
     lesson: 'One arrow waits for the next, which waits for the next.',
     color: 'blue',
-    mascot: 'bear',
+    mascot: 'elephant',
     signature: 'L',
     routeStyle: 'queue',
     levelIds: range(15, 28),
@@ -36,7 +36,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'Crosswalk',
     lesson: 'Lanes run across other arrows’ bodies.',
     color: 'pink',
-    mascot: 'bunny',
+    mascot: 'monkey',
     signature: 'S',
     routeStyle: 'cross',
     levelIds: range(29, 42),
@@ -47,7 +47,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'Hairpin',
     lesson: 'U-turns, and arrows nested inside arrows.',
     color: 'green',
-    mascot: 'frog',
+    mascot: 'tiger',
     signature: 'U',
     routeStyle: 'hairpin',
     levelIds: range(43, 56),
@@ -58,7 +58,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'Switchback',
     lesson: 'Zigzags and key arrows that unlock whole regions.',
     color: 'orange',
-    mascot: 'pig',
+    mascot: 'giraffe',
     signature: 'zigzag',
     routeStyle: 'stairs',
     levelIds: range(57, 70),
@@ -69,7 +69,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'Long Shot',
     lesson: 'A gap ahead doesn’t mean the lane is clear.',
     color: 'purple',
-    mascot: 'panda',
+    mascot: 'zebra',
     signature: 'straight',
     routeStyle: 'longshot',
     levelIds: range(71, 84),
@@ -80,7 +80,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'The Tangle',
     lesson: 'Long winding arrows on crowded boards.',
     color: 'red',
-    mascot: 'cat',
+    mascot: 'hippo',
     signature: 'winding',
     routeStyle: 'tangle',
     levelIds: range(85, 98),
@@ -91,7 +91,7 @@ export const CHAPTERS: readonly ChapterDef[] = [
     title: 'Gridlock',
     lesson: 'Everything at once.',
     color: 'yellow',
-    mascot: 'bear',
+    mascot: 'fox',
     signature: 'spiral',
     routeStyle: 'gridlock',
     levelIds: range(99, 112),

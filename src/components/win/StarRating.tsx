@@ -12,7 +12,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { StarCount } from '@/types';
 import { WIN_STAR_DELAY_MS, WIN_STAR_GAP_MS, WIN_STAR_LAND_MS } from '@/constants/animation';
-import { colors, palette, radii, spacing } from '@/theme';
+import { colors, palette, radii, spacing, themed } from '@/theme';
 
 const STAR = '12,2 14.9,8.6 22,9.3 16.6,14 18.2,21 12,17.3 5.8,21 7.4,14 2,9.3 9.1,8.6';
 /** Left half of the star, drawn lighter for a bevelled look. */
@@ -24,19 +24,19 @@ const SLOTS = [
   { size: 90, tilt: 0, lift: 22 },
   { size: 66, tilt: 14, lift: 0 },
 ];
-const SPARKLES = 8;
+const SPARKLES = 6;
 const SPARKLE_SIZE = 9;
 
 function StarGlyph({ size, filled }: { size: number; filled: boolean }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 26 26">
       <G transform="translate(2.4 2.4)">
-        <Polygon points={STAR} fill={colors.ink} />
+        <Polygon points={STAR} fill={colors.artInk} />
       </G>
       <G transform="translate(0.8 0.8)">
         <Polygon points={STAR} fill={filled ? palette.yellow : colors.inkMuted} />
         <Polygon points={STAR_LIGHT_HALF} fill={filled ? palette.lemon : SOCKET} />
-        <Polygon points={STAR} fill="none" stroke={colors.ink} strokeWidth={1.6} strokeLinejoin="round" />
+        <Polygon points={STAR} fill="none" stroke={colors.artInk} strokeWidth={1.6} strokeLinejoin="round" />
         {filled ? <Ellipse cx={8.4} cy={9.4} rx={1.6} ry={0.9} fill={palette.white} transform="rotate(-35 8.4 9.4)" /> : null}
       </G>
     </Svg>
@@ -61,8 +61,11 @@ function Sparkle({ burst, index, reach }: { burst: SharedValue<number>; index: n
   return <Animated.View style={[styles.sparkle, index % 2 ? styles.sparkleWhite : styles.sparkleGold, style]} />;
 }
 
-function Star({ index, filled, reducedMotion }: { index: number; filled: boolean; reducedMotion: boolean }) {
-  const { size, tilt, lift } = SLOTS[index];
+function Star({ index, filled, reducedMotion, scale }: { index: number; filled: boolean; reducedMotion: boolean; scale: number }) {
+  const slot = SLOTS[index];
+  const size = Math.round(slot.size * scale);
+  const lift = slot.lift * scale;
+  const tilt = slot.tilt;
   const drop = useSharedValue(reducedMotion ? 1 : 0);
   const burst = useSharedValue(0);
 
@@ -99,20 +102,29 @@ function Star({ index, filled, reducedMotion }: { index: number; filled: boolean
 }
 
 /** Three bevelled stars that slam into dark sockets on a black tray, each with a sparkle burst. */
-export const StarRating = memo(function StarRating({ stars, reducedMotion = false }: { stars: StarCount; reducedMotion?: boolean }) {
+/** `scale` shrinks the stars on short screens so the whole win card fits without scrolling. */
+export const StarRating = memo(function StarRating({
+  stars,
+  reducedMotion = false,
+  scale = 1,
+}: {
+  stars: StarCount;
+  reducedMotion?: boolean;
+  scale?: number;
+}) {
   return (
     <View style={styles.root} accessibilityLabel={`${stars} of 3 stars`}>
-      <View style={styles.tray} />
+      <View style={[styles.tray, { height: Math.round(44 * scale) }]} />
       <View style={styles.row}>
         {SLOTS.map((_, i) => (
-          <Star key={i} index={i} filled={i < stars} reducedMotion={reducedMotion} />
+          <Star key={i} index={i} filled={i < stars} reducedMotion={reducedMotion} scale={scale} />
         ))}
       </View>
     </View>
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { alignSelf: 'stretch', alignItems: 'center', paddingTop: spacing.xs },
   tray: {
     position: 'absolute',
@@ -130,8 +142,8 @@ const styles = StyleSheet.create({
     width: SPARKLE_SIZE,
     height: SPARKLE_SIZE,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.artInk,
   },
   sparkleGold: { backgroundColor: palette.yellow },
   sparkleWhite: { backgroundColor: palette.white },
-});
+}));

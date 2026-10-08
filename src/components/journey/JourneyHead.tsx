@@ -1,6 +1,7 @@
 import { memo, useEffect, useMemo } from 'react';
 import { StyleSheet } from 'react-native';
 import Animated, {
+  cancelAnimation,
   Easing,
   useAnimatedStyle,
   useSharedValue,
@@ -11,9 +12,11 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 import type { Point } from '@/types';
-import type { Animal } from '@/constants/animals';
+import type { FaceAnimal } from '@/constants/animals';
 import { AnimalFace } from '@/components/game/AnimalFace';
 import { arrivalDirection, pointAlong, polylineLengthPx } from '@/game/journey/mapGeometry';
+import { themed } from '@/theme';
+import { useMapMotionActive } from './mapMotion';
 
 /** Face box size; the face itself is a third of this across (≈ 40 dp). */
 const BOX = 62;
@@ -22,7 +25,7 @@ export const HEAD_GAP = 50;
 const MOVE_MS = 600;
 
 interface JourneyHeadProps {
-  animal: Animal;
+  animal: FaceAnimal;
   color: string;
   /** Route leading up to where the head rests (zone pixels), ending at the rest point. */
   path: Point[];
@@ -45,6 +48,8 @@ export const JourneyHead = memo(function JourneyHead({ animal, color, path, trav
   const along = useSharedValue(travel && !reducedMotion ? 0 : length);
   const appear = useSharedValue(travel || reducedMotion ? 1 : 0);
   const bob = useSharedValue(0);
+  // The idle bob pauses while the map is off screen.
+  const motionActive = useMapMotionActive();
 
   useEffect(() => {
     if (reducedMotion) {
@@ -59,11 +64,19 @@ export const JourneyHead = memo(function JourneyHead({ animal, color, path, trav
       along.value = length;
       appear.value = withDelay(delayMs, withSpring(1, { damping: 9, stiffness: 180 }));
     }
+  }, [travel, delayMs, length, reducedMotion, along, appear]);
+
+  useEffect(() => {
+    if (reducedMotion || !motionActive) {
+      cancelAnimation(bob);
+      bob.value = 0;
+      return;
+    }
     bob.value = withDelay(
       delayMs + MOVE_MS,
       withRepeat(withSequence(withTiming(1, { duration: 700 }), withTiming(0, { duration: 700 })), -1),
     );
-  }, [travel, delayMs, length, reducedMotion, along, appear, bob]);
+  }, [reducedMotion, motionActive, delayMs, bob]);
 
   const style = useAnimatedStyle(() => {
     const p = pointAlong(xs, ys, along.value);
@@ -84,6 +97,6 @@ export const JourneyHead = memo(function JourneyHead({ animal, color, path, trav
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   head: { position: 'absolute', left: 0, top: 0, width: BOX, height: BOX },
-});
+}));

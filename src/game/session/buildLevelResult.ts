@@ -17,5 +17,6 @@ export function buildLevelResult(state: GameState, opts: { isFirstClear: boolean
     moves: state.moves,
     mistakes: state.mistakes,
     hintsUsed: state.hintsUsed,
+    hammersUsed: state.hammersUsed,
   };
 }

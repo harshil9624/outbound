@@ -21,9 +21,9 @@ export const LevelThumbnail = memo(function LevelThumbnail({ level, size, locked
         const fill = locked ? palette.stone : arrowColors[a.color];
         return (
           <G key={a.id}>
-            <Path d={d} stroke={colors.ink} strokeWidth={0.42} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+            <Path d={d} stroke={colors.artInk} strokeWidth={0.42} strokeLinecap="round" strokeLinejoin="round" fill="none" />
             <Path d={d} stroke={fill} strokeWidth={0.24} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-            <Circle cx={head.x + 0.5} cy={head.y + 0.5} r={0.3} fill={fill} stroke={colors.ink} strokeWidth={0.09} />
+            <Circle cx={head.x + 0.5} cy={head.y + 0.5} r={0.3} fill={fill} stroke={colors.artInk} strokeWidth={0.09} />
           </G>
         );
       })}

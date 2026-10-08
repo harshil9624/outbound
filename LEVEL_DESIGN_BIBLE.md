@@ -1,4 +1,4 @@
-# Outbound — Level Design Bible
+# ArrowZing — Level Design Bible
 
 > **Easy to understand the arrow. Hard to decide the correct move.**
 
@@ -222,7 +222,7 @@ What the current visuals get right, and must keep doing:
 - **Bends are rounded and the stroke is even**, so a winding body reads as one object.
 - **The cream checkerboard** helps the player follow rows and columns when tracing a lane, which is exactly the thinking we want. Keep the contrast low.
 
-**Our own look.** The genre is dark boards and neon lines. Outbound is paper and ink: slim coloured lines with a black outline and a solid offset shadow (the same hard shadow as every card and button in the app), animal heads, and a warm checkerboard. Keep it that way; don't drift back to glow and neon.
+**Our own look.** The genre is dark boards and neon lines. ArrowZing is paper and ink: slim coloured lines with a black outline and a solid offset shadow (the same hard shadow as every card and button in the app), animal heads, and a warm checkerboard. Keep it that way; don't drift back to glow and neon.
 
 What must never happen, because each one gives away **when**:
 

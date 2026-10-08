@@ -10,7 +10,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { HAMMER_IMPACT_MS, HAMMER_STRIKE_MS } from '@/constants/animation';
 import { HammerIcon } from '@/components/icons';
-import { colors, fontWeights, palette } from '@/theme';
+import { MAX_FONT_SCALE, colors, fonts, palette, themed } from '@/theme';
 
 /** Fractions of HAMMER_STRIKE_MS. */
 const FLY_END = 0.38;
@@ -56,8 +56,10 @@ interface HammerStrikeProps {
   /** Spin on the way in (when coming from below rather than from the hover spot). */
   spin: boolean;
   cellSize: number;
+  /** Passed back to onDone, so the parent can hand every strike the same callback. */
+  id: string;
   onImpact: () => void;
-  onDone: () => void;
+  onDone: (id: string) => void;
 }
 
 /**
@@ -72,6 +74,7 @@ export const HammerStrike = memo(function HammerStrike({
   fromY,
   spin,
   cellSize,
+  id,
   onImpact,
   onDone,
 }: HammerStrikeProps) {
@@ -83,14 +86,14 @@ export const HammerStrike = memo(function HammerStrike({
   const t = useSharedValue(0);
   const impact = useSharedValue(0);
   // Latest callbacks without restarting the strike when the parent re-renders.
-  const callbacks = useRef({ onImpact, onDone });
-  callbacks.current = { onImpact, onDone };
+  const callbacks = useRef({ onImpact, onDone, id });
+  callbacks.current = { onImpact, onDone, id };
 
   useEffect(() => {
     t.value = withTiming(1, { duration: HAMMER_STRIKE_MS, easing: Easing.linear });
     impact.value = withDelay(HAMMER_IMPACT_MS, withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }));
     const hit = setTimeout(() => callbacks.current.onImpact(), HAMMER_IMPACT_MS);
-    const done = setTimeout(() => callbacks.current.onDone(), HAMMER_STRIKE_MS + 50);
+    const done = setTimeout(() => callbacks.current.onDone(callbacks.current.id), HAMMER_STRIKE_MS + 50);
     return () => {
       clearTimeout(hit);
       clearTimeout(done);
@@ -157,6 +160,7 @@ export const HammerStrike = memo(function HammerStrike({
         <HammerIcon size={size} />
       </Animated.View>
       <Animated.Text
+        maxFontSizeMultiplier={MAX_FONT_SCALE}
         style={[styles.bam, { left: targetX - 60, top: targetY - cellSize * 1.15, fontSize: Math.max(26, cellSize * 0.6) }, bamStyle]}
       >
         BAM!
@@ -183,7 +187,7 @@ function Spark({ index, impact, x, y, reach }: { index: number; impact: SharedVa
   return <Animated.View style={[styles.spark, { left: x - 6, top: y - 6 }, index % 3 === 0 && styles.sparkWhite, style]} />;
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hammer: {
     position: 'absolute',
     left: 0,
@@ -196,17 +200,17 @@ const styles = StyleSheet.create({
     height: 12,
     backgroundColor: palette.yellow,
     borderWidth: 1.5,
-    borderColor: colors.ink,
+    borderColor: colors.artInk,
   },
   sparkWhite: { backgroundColor: palette.white },
   bam: {
     position: 'absolute',
     width: 120,
     textAlign: 'center',
-    fontWeight: fontWeights.heavy,
+    fontFamily: fonts.display,
     color: palette.yellow,
-    textShadowColor: colors.ink,
+    textShadowColor: colors.artInk,
     textShadowOffset: { width: 3, height: 3 },
     textShadowRadius: 1,
   },
-});
+}));

@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { useSettingsStore } from '@/store/settingsStore';
 import { HardShadow, cornerStyles } from '@/components/ui/HardShadow';
-import { borderWidths, colors, spacing } from '@/theme';
+import { borderWidths, colors, spacing, themed } from '@/theme';
 import { MoodHeart, type HeartMood } from './MoodHeart';
 
 const HEART_SIZE = 34;
@@ -39,7 +39,7 @@ export const LivesDisplay = memo(function LivesDisplay({ lives, maxLives }: { li
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   pill: {
     flexDirection: 'row',
     gap: spacing.xs,
@@ -49,4 +49,4 @@ const styles = StyleSheet.create({
     borderWidth: borderWidths.regular,
     borderColor: colors.ink,
   },
-});
+}));

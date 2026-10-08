@@ -1,4 +1,4 @@
-import type { Animal } from '../../constants/animals';
+import type { FaceAnimal } from '../../constants/animals';
 import type { ShapeFamily } from '../analysis/arrowShape';
 import type { ArrowColor } from '../../types/level';
 import type { StarCount } from '../../types/game';
@@ -15,7 +15,7 @@ export interface ChapterDef {
   /** One line shown on the chapter card: what the player learns here. */
   lesson: string;
   color: ArrowColor;
-  mascot: Animal;
+  mascot: FaceAnimal;
   signature: ShapeFamily;
   routeStyle: RouteStyle;
   /** Main-route levels, in play order. The last one is the master gate. */

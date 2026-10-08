@@ -4,6 +4,8 @@ import { playSound } from '@/audio/sounds';
 import { HAMMER_IMPACT_MS } from '@/constants/animation';
 import { BOOST_COSTS } from '@/constants/gameConfig';
 import { canAddLife } from '@/game/engine/addLife';
+import { findHint } from '@/game/engine/findHint';
+import { COACH_TEXT, TUTORIAL_LEVEL, coachPoints, nextCoachStep, type CoachStep } from '@/game/session/coach';
 import { nextMainLevel } from '@/game/journey/progress';
 import { levelProvider } from '@/game/levels/levelProvider';
 import { buildLevelResult } from '@/game/session/buildLevelResult';
@@ -44,13 +46,23 @@ export function useLevelSession(levelId: number, onWin: () => void) {
 
   const finalized = useRef(false);
 
+  // The guided first level, until it has been finished once (see game/session/coach).
+  const coachOn = useMemo(() => levelId === TUTORIAL_LEVEL && !usePlayerStore.getState().tutorialDone, [levelId]);
+  const [coachStep, setCoachStep] = useState<CoachStep>('start');
+  const coachExits = useRef(0);
+  const resetCoach = useCallback(() => {
+    coachExits.current = 0;
+    setCoachStep('start');
+  }, []);
+
   useEffect(() => {
     if (!level) return;
     finalized.current = false;
+    resetCoach();
     startLevel(level);
     usePlayerStore.getState().setCurrentLevel(level.id);
     return () => endSession();
-  }, [level, startLevel, endSession]);
+  }, [level, startLevel, endSession, resetCoach]);
 
   // Win only after the last exit animation has finished.
   useEffect(() => {
@@ -62,9 +74,10 @@ export function useLevelSession(levelId: number, onWin: () => void) {
     const result = buildLevelResult(s.game, { isFirstClear: !player.completedLevels.includes(levelId) });
     player.applyLevelResult(result, nextMainLevel(levelId, levelProvider.hasLevel));
     s.setLastResult(result);
+    if (coachOn) player.markTutorialDone();
     playSound('win');
     onWin();
-  }, [game?.status, exitingIds.length, levelId, onWin]);
+  }, [game?.status, exitingIds.length, levelId, onWin, coachOn]);
 
   /** Short message shown when a boost can't be used. Token re-triggers the same text. */
   const [notice, setNotice] = useState<{ text: string; token: number } | null>(null);
@@ -89,8 +102,13 @@ export function useLevelSession(levelId: number, onWin: () => void) {
         playSound('blocked');
         vibrateBlocked(useSettingsStore.getState().vibrationEnabled);
       }
+      if (coachOn && (result?.kind === 'exited' || result?.kind === 'blocked')) {
+        if (result.kind === 'exited') coachExits.current += 1;
+        const kind = result.kind;
+        setCoachStep((step) => nextCoachStep(step, kind, coachExits.current));
+      }
     },
-    [tapArrow, explain],
+    [tapArrow, explain, coachOn],
   );
 
   const onHint = useCallback(() => {
@@ -107,11 +125,22 @@ export function useLevelSession(levelId: number, onWin: () => void) {
 
   const onRestart = useCallback(() => {
     finalized.current = false;
+    resetCoach();
     restart();
-  }, [restart]);
+  }, [restart, resetCoach]);
 
   const playing = !!game && game.status === 'playing';
   const hintVisible = !!game && !!hintArrowId && game.remainingIds.includes(hintArrowId);
+
+  // What the coach says, and the arrow its hand taps: any arrow that can escape right now.
+  const coachTarget = useMemo(
+    () => (coachOn && playing && coachPoints(coachStep) && game ? findHint(game) : null),
+    [coachOn, playing, coachStep, game],
+  );
+  const coach = useMemo(
+    () => (coachOn && playing ? { text: COACH_TEXT[coachStep], targetId: hammerArmed ? null : coachTarget } : null),
+    [coachOn, playing, coachStep, coachTarget, hammerArmed],
+  );
 
   return {
     level,
@@ -127,6 +156,7 @@ export function useLevelSession(levelId: number, onWin: () => void) {
     canHammer: playing && (hammerArmed || coins >= BOOST_COSTS.hammer),
     canBuyLife: !!game && canAddLife(game) && coins >= BOOST_COSTS.life,
     notice,
+    coach,
     interactive: playing,
     onTapArrow,
     onExitComplete: completeExit,

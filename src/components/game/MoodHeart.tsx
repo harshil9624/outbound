@@ -11,7 +11,7 @@ import Animated, {
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, palette } from '@/theme';
+import { colors, palette, themed } from '@/theme';
 
 export type HeartMood = 'happy' | 'worried' | 'scared' | 'broken';
 
@@ -23,20 +23,20 @@ const RED = { light: '#FF9A9A', mid: palette.red, dark: '#C9213A' };
 const GREY = { light: '#EFE7D6', mid: palette.sand, dark: palette.stone };
 const BLUSH = '#FF8FB8';
 
-const STROKE = { stroke: colors.ink, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' } as const;
+const STROKE = { stroke: colors.artInk, strokeLinecap: 'round', strokeLinejoin: 'round', fill: 'none' } as const;
 
 function Eye({ x, wide }: { x: number; wide?: boolean }) {
   if (wide) {
     return (
       <G>
-        <Circle cx={x} cy={11} r={1.7} fill={palette.white} stroke={colors.ink} strokeWidth={0.8} />
-        <Circle cx={x} cy={11.3} r={0.8} fill={colors.ink} />
+        <Circle cx={x} cy={11} r={1.7} fill={palette.white} stroke={colors.artInk} strokeWidth={0.8} />
+        <Circle cx={x} cy={11.3} r={0.8} fill={colors.artInk} />
       </G>
     );
   }
   return (
     <G>
-      <Ellipse cx={x} cy={11} rx={1.05} ry={1.4} fill={colors.ink} />
+      <Ellipse cx={x} cy={11} rx={1.05} ry={1.4} fill={colors.artInk} />
       <Circle cx={x + 0.35} cy={10.5} r={0.4} fill={palette.white} />
     </G>
   );
@@ -49,7 +49,7 @@ function Face({ mood }: { mood: HeartMood }) {
         <G>
           <Eye x={9} />
           <Eye x={15} />
-          <Path d="M9.7 13.4 Q12 16.6 14.3 13.4 Z" fill={colors.ink} />
+          <Path d="M9.7 13.4 Q12 16.6 14.3 13.4 Z" fill={colors.artInk} />
           <Path d="M10.9 14.7 Q12 15.6 13.1 14.7 Q12 14.2 10.9 14.7 Z" fill={BLUSH} />
           <Ellipse cx={6.9} cy={13.4} rx={1.3} ry={0.7} fill={BLUSH} />
           <Ellipse cx={17.1} cy={13.4} rx={1.3} ry={0.7} fill={BLUSH} />
@@ -72,8 +72,8 @@ function Face({ mood }: { mood: HeartMood }) {
           <Path d="M13.8 7.7 L16.6 8.6" {...STROKE} strokeWidth={0.9} />
           <Eye x={9} wide />
           <Eye x={15} wide />
-          <Ellipse cx={12} cy={15} rx={1} ry={1.25} fill={colors.ink} />
-          <Path d={TEAR} transform="translate(18.9 5.6)" fill={palette.blue} stroke={colors.ink} strokeWidth={0.6} />
+          <Ellipse cx={12} cy={15} rx={1} ry={1.25} fill={colors.artInk} />
+          <Path d={TEAR} transform="translate(18.9 5.6)" fill={palette.blue} stroke={colors.artInk} strokeWidth={0.6} />
         </G>
       );
     case 'broken':
@@ -83,7 +83,7 @@ function Face({ mood }: { mood: HeartMood }) {
           <Path d="M7.9 10.6 Q9 11.6 10.1 10.6" {...STROKE} strokeWidth={1} />
           <Path d="M13.9 10.6 Q15 11.6 16.1 10.6" {...STROKE} strokeWidth={1} />
           <Path d="M9.9 15.3 Q11 14 12 14.9" {...STROKE} strokeWidth={1} />
-          <Path d={TEAR} transform="translate(8.3 12.2)" fill={palette.blue} stroke={colors.ink} strokeWidth={0.5} />
+          <Path d={TEAR} transform="translate(8.3 12.2)" fill={palette.blue} stroke={colors.artInk} strokeWidth={0.5} />
         </G>
       );
   }
@@ -102,9 +102,9 @@ export const HeartGlyph = memo(function HeartGlyph({ size, mood }: { size: numbe
           <Stop offset="1" stopColor={tone.dark} />
         </RadialGradient>
       </Defs>
-      <Path d={HEART} transform="translate(1.6 1.6)" fill={colors.ink} />
+      <Path d={HEART} transform="translate(1.6 1.6)" fill={colors.artInk} />
       <G transform="translate(0.3 0.3)">
-        <Path d={HEART} fill={`url(#${id})`} stroke={colors.ink} strokeWidth={1.5} strokeLinejoin="round" />
+        <Path d={HEART} fill={`url(#${id})`} stroke={colors.artInk} strokeWidth={1.5} strokeLinejoin="round" />
         <Ellipse cx={6.6} cy={7.6} rx={1.9} ry={1.1} fill={palette.white} opacity={0.85} transform="rotate(-40 6.6 7.6)" />
         <Circle cx={8.6} cy={6.3} r={0.5} fill={palette.white} opacity={0.85} />
         <Face mood={mood} />
@@ -201,7 +201,7 @@ export const MoodHeart = memo(function MoodHeart({ size, mood, beatMs, beatDelay
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   tear: {
     position: 'absolute',
     backgroundColor: palette.blue,
@@ -212,4 +212,4 @@ const styles = StyleSheet.create({
     borderBottomLeftRadius: 99,
     borderBottomRightRadius: 99,
   },
-});
+}));

@@ -5,13 +5,17 @@ import Animated, {
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
   withTiming,
 } from 'react-native-reanimated';
-import { colors, palette } from '@/theme';
+import { colors, palette, themed } from '@/theme';
 
 const PIECE_COLORS = [palette.yellow, palette.pink, palette.blue, palette.green, palette.orange, palette.purple];
-const PIECES = 20;
+const PIECES = 16;
+/** Every piece starts within this window, so it reads as one burst. */
+const CONFETTI_SPREAD_MS = 900;
+const CONFETTI_FALL_MAX_MS = 4400;
+/** By now every piece has left the screen; the win screen unmounts the confetti. */
+export const CONFETTI_TOTAL_MS = CONFETTI_SPREAD_MS + CONFETTI_FALL_MAX_MS;
 
 interface PieceSpec {
   x: number;
@@ -28,7 +32,7 @@ interface PieceSpec {
 
 const between = (min: number, max: number) => min + Math.random() * (max - min);
 
-/** Ink-outlined paper confetti that keeps drifting down while the win screen is open. */
+/** Ink-outlined paper confetti: one shower when the win screen opens, then it's gone. */
 export const Confetti = memo(function Confetti() {
   const { width, height } = useWindowDimensions();
   const pieces = useMemo<PieceSpec[]>(
@@ -39,8 +43,8 @@ export const Confetti = memo(function Confetti() {
         h: between(6, 11),
         color: PIECE_COLORS[i % PIECE_COLORS.length],
         round: i % 4 === 0,
-        delay: between(0, 2200),
-        duration: between(2800, 4400),
+        delay: between(0, CONFETTI_SPREAD_MS),
+        duration: between(2800, CONFETTI_FALL_MAX_MS),
         spins: between(1, 3) * (i % 2 ? 1 : -1),
         flips: Math.round(between(2, 5)),
         sway: between(10, 30),
@@ -60,7 +64,8 @@ export const Confetti = memo(function Confetti() {
 function Piece({ spec, fall }: { spec: PieceSpec; fall: number }) {
   const v = useSharedValue(0);
   useEffect(() => {
-    v.value = withDelay(spec.delay, withRepeat(withTiming(1, { duration: spec.duration, easing: Easing.linear }), -1));
+    // A single fall: the piece ends below the screen.
+    v.value = withDelay(spec.delay, withTiming(1, { duration: spec.duration, easing: Easing.linear }));
   }, [spec.delay, spec.duration, v]);
 
   const style = useAnimatedStyle(() => ({
@@ -90,6 +95,6 @@ function Piece({ spec, fall }: { spec: PieceSpec; fall: number }) {
   );
 }
 
-const styles = StyleSheet.create({
-  piece: { position: 'absolute', top: 0, borderWidth: 1.5, borderColor: colors.ink },
-});
+const styles = themed(() => StyleSheet.create({
+  piece: { position: 'absolute', top: 0, borderWidth: 1.5, borderColor: colors.artInk },
+}));

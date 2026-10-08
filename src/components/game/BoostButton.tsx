@@ -1,9 +1,10 @@
 import { memo, type ReactNode } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import type { SoundName } from '@/audio/sounds';
 import { CoinIcon } from '@/components/icons';
 import { BrutalistButton } from '@/components/ui/BrutalistButton';
-import { borderWidths, colors, radii, spacing, textStyles, type SurfaceColor } from '@/theme';
+import { borderWidths, colors, radii, spacing, textStyles, type SurfaceColor, themed } from '@/theme';
 
 interface BoostButtonProps {
   icon: ReactNode;
@@ -49,13 +50,15 @@ export const BoostButton = memo(function BoostButton({
           </View>
         ) : null}
       </View>
-      <Text style={[styles.label, disabled && styles.labelDisabled]}>{active ? 'CANCEL' : label}</Text>
+      <Text style={[styles.label, disabled && styles.labelDisabled]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+        {active ? 'CANCEL' : label}
+      </Text>
     </View>
   );
 });
 
-const styles = StyleSheet.create({
-  col: { alignItems: 'center', gap: spacing.xs },
+const styles = themed(() => StyleSheet.create({
+  col: { flex: 1, maxWidth: 96, alignItems: 'center', gap: spacing.xs },
   price: {
     position: 'absolute',
     top: -spacing.sm,
@@ -73,6 +76,6 @@ const styles = StyleSheet.create({
   },
   priceDisabled: { backgroundColor: colors.disabled },
   priceText: { ...textStyles.caption, color: colors.ink, fontWeight: '900' },
-  label: { ...textStyles.caption, color: colors.ink, fontWeight: '900', letterSpacing: 0.5 },
+  label: { ...textStyles.caption, color: colors.ink, fontWeight: '900', letterSpacing: 0.5, textAlign: 'center' },
   labelDisabled: { color: colors.disabledInk },
-});
+}));

@@ -1,4 +1,5 @@
 import type { ArrowColor } from '@/types/level';
+import { getThemeMode, subscribeThemeMode } from './themeMode';
 
 export const palette = {
   cream: '#FFF7E8',
@@ -18,12 +19,22 @@ export const palette = {
   lemon: '#FFEC8A',
 } as const;
 
-/** Semantic roles. Components use these, not raw palette values. */
-export const colors = {
+const lightColors = {
   background: palette.cream,
   surface: palette.white,
+  /** Inner panels on a card: tracks, record tiles, the journey map paper. */
+  paper: palette.cream,
   ink: palette.black,
   inkMuted: '#4A4640',
+  /** Text and glyphs on a colour face (yellow, pink, blue...). Dark in both themes. */
+  onColor: palette.black,
+  onColorMuted: '#4A4640',
+  /** Text on a block filled with ink. */
+  inverseInk: palette.cream,
+  /** Hard offset shadows. */
+  shadow: palette.black,
+  /** Outlines inside drawings (animals, hearts, icons, arrows): black in both themes. */
+  artInk: palette.black,
   primary: palette.yellow,
   accent: palette.pink,
   info: palette.blue,
@@ -32,12 +43,39 @@ export const colors = {
   coin: palette.yellow,
   coinShade: palette.gold,
   heart: palette.red,
-  /** Warm checkerboard play surface: the genre is all dark/neon, Outbound is paper and ink. */
+  /** Warm checkerboard play surface: the genre is all dark/neon, ArrowZing is paper and ink. */
   board: '#FBF1DC',
   boardAlt: '#F2E2C0',
   disabled: palette.sand,
   disabledInk: palette.stone,
-} as const;
+};
+
+export type SemanticColors = { [K in keyof typeof lightColors]: string };
+
+/**
+ * Dark mode: warm charcoal desk, dark cards with chalk-cream ink and borders, black shadows.
+ * Colour faces keep their brightness and dark text (onColor), so a yellow button reads the same.
+ */
+const darkColors: SemanticColors = {
+  ...lightColors,
+  background: '#1F1C18',
+  surface: '#302B25',
+  paper: '#3A342D',
+  ink: '#F4ECDD',
+  inkMuted: '#B9AE98',
+  inverseInk: '#1F1C18',
+  shadow: '#000000',
+  board: '#2B2621',
+  boardAlt: '#352F29',
+  disabled: '#4A433A',
+  disabledInk: '#8C8273',
+};
+
+/** Semantic roles. Components use these, not raw palette values. Updated in place on a theme switch. */
+export const colors: SemanticColors = { ...(getThemeMode() === 'dark' ? darkColors : lightColors) };
+
+subscribeThemeMode((mode) => Object.assign(colors, mode === 'dark' ? darkColors : lightColors));
+
 
 export const arrowColors: Record<ArrowColor, string> = {
   yellow: palette.yellow,

@@ -6,6 +6,11 @@ import type { ChapterDef, ChapterLayout, MapNode, NodeState, PlayerProgress } fr
 export const MAIN_ROUTE: readonly number[] = CHAPTERS.flatMap((c) => c.levelIds);
 const ROUTE_INDEX = new Map(MAIN_ROUTE.map((id, i) => [id, i]));
 
+/** Some route levels aren't made yet: "nothing left to play" then means "more coming", not "finished". */
+export function hasUnmadeLevels(exists: (id: number) => boolean): boolean {
+  return MAIN_ROUTE.some((id) => !exists(id));
+}
+
 export function isMainRouteLevel(levelId: number): boolean {
   return ROUTE_INDEX.has(levelId);
 }

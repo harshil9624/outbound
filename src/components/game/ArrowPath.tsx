@@ -189,8 +189,8 @@ function ArrowPathComponent({
   // Layers, bottom to top: hard shadow, ink outline, colour, glint.
   return (
     <G>
-      <AnimatedPath {...common} d={geo.shadowD} stroke={colors.ink} strokeWidth={geo.outlineWidth} animatedProps={shadowProps} />
-      <AnimatedPath {...common} stroke={colors.ink} strokeWidth={geo.outlineWidth} animatedProps={outlineProps} />
+      <AnimatedPath {...common} d={geo.shadowD} stroke={colors.artInk} strokeWidth={geo.outlineWidth} animatedProps={shadowProps} />
+      <AnimatedPath {...common} stroke={colors.artInk} strokeWidth={geo.outlineWidth} animatedProps={outlineProps} />
       <AnimatedPath {...common} stroke={fill} strokeWidth={geo.bodyWidth} animatedProps={bodyProps} />
       <AnimatedPath
         {...common}

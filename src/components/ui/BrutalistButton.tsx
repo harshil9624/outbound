@@ -1,9 +1,11 @@
 import type { ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Text } from './Text';
 import { playSound, type SoundName } from '@/audio/sounds';
-import { borderWidths, colors, fontSizes, spacing, textStyles, type ShadowSize, type SurfaceColor } from '@/theme';
+import { borderWidths, colors, fontSizes, spacing, textStyles, type ShadowSize, type SurfaceColor, themed } from '@/theme';
 import { cornerStyles, pressedBySize, rootBySize, shadowBySize } from './HardShadow';
-import { surfaceStyles } from './surfaceStyles';
+import { isColorFace, surfaceStyles } from './surfaceStyles';
+import { OnColor } from './Text';
 
 type ButtonSize = 'sm' | 'md' | 'lg';
 
@@ -63,10 +65,21 @@ export function BrutalistButton({
               pressed && !disabled && pressedBySize[shadow],
             ]}
           >
-            {icon}
-            {label ? (
-              <Text style={[textStyles.button, labelBySize[size], looksDisabled && styles.labelDisabled]}>{label}</Text>
-            ) : null}
+            <OnColor value={!looksDisabled && isColorFace(color)}>
+              {icon}
+              {label ? (
+                // One line, shrinking to fit a narrow button (half-width pairs, small phones, big
+                // system font) instead of wrapping or running past the edge.
+                <Text
+                  style={[textStyles.button, labelBySize[size], styles.label, looksDisabled && styles.labelDisabled]}
+                  numberOfLines={1}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.6}
+                >
+                  {label}
+                </Text>
+              ) : null}
+            </OnColor>
           </View>
         </>
       )}
@@ -74,8 +87,8 @@ export function BrutalistButton({
   );
 }
 
-const styles = StyleSheet.create({
-  shadow: { position: 'absolute', backgroundColor: colors.ink },
+const styles = themed(() => StyleSheet.create({
+  shadow: { position: 'absolute', backgroundColor: colors.shadow },
   face: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -85,23 +98,24 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
   },
   faceDisabled: { backgroundColor: colors.disabled },
+  label: { flexShrink: 1, textAlign: 'center' },
   labelDisabled: { color: colors.disabledInk },
-});
+}));
 
-const padBySize = StyleSheet.create({
+const padBySize = themed(() => StyleSheet.create({
   sm: { paddingVertical: spacing.sm, paddingHorizontal: spacing.md, minHeight: 44 },
   md: { paddingVertical: spacing.md, paddingHorizontal: spacing.xl, minHeight: 52 },
   lg: { paddingVertical: spacing.lg, paddingHorizontal: spacing.xxl, minHeight: 68 },
-});
+}));
 
-const squareBySize = StyleSheet.create({
+const squareBySize = themed(() => StyleSheet.create({
   sm: { width: 44, height: 44 },
   md: { width: 52, height: 52 },
   lg: { width: 64, height: 64 },
-});
+}));
 
-const labelBySize = StyleSheet.create({
+const labelBySize = themed(() => StyleSheet.create({
   sm: { fontSize: fontSizes.sm },
   md: { fontSize: fontSizes.lg },
   lg: { fontSize: fontSizes.xl },
-});
+}));

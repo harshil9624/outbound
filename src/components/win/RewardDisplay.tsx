@@ -1,11 +1,11 @@
 import { memo, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View, type LayoutChangeEvent, type TextStyle } from 'react-native';
+import { StyleSheet, View, type LayoutChangeEvent, type TextStyle } from 'react-native';
+import { OnColor, Text } from '@/components/ui/Text';
 import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
   withDelay,
-  withRepeat,
   withSequence,
   withSpring,
   withTiming,
@@ -14,7 +14,7 @@ import type { RewardBreakdown } from '@/types';
 import { playSound } from '@/audio/sounds';
 import { CoinIcon } from '@/components/icons';
 import { HardShadow, cornerStyles } from '@/components/ui/HardShadow';
-import { surfaceStyles } from '@/components/ui/surfaceStyles';
+import { isColorFace, surfaceStyles } from '@/components/ui/surfaceStyles';
 import {
   WIN_COIN_FLIGHT_MS,
   WIN_COIN_FLY_DELAY_MS,
@@ -23,7 +23,7 @@ import {
   WIN_COUNT_UP_MS,
   WIN_FLYING_COINS,
 } from '@/constants/animation';
-import { borderWidths, colors, fontSizes, fontWeights, radii, spacing, textStyles, type SurfaceColor } from '@/theme';
+import { borderWidths, colors, fontSizes, fontWeights, palette, radii, spacing, textStyles, type SurfaceColor, themed } from '@/theme';
 
 interface RewardDisplayProps {
   reward: RewardBreakdown;
@@ -33,6 +33,7 @@ interface RewardDisplayProps {
 }
 
 const FLY_COIN = 26;
+const COUNT_UP_STEP_MS = 66;
 
 /** Eases from 0 to `target` once the stars have landed; jumps straight there when disabled. */
 function useCountUp(target: number, enabled: boolean): number {
@@ -44,10 +45,16 @@ function useCountUp(target: number, enabled: boolean): number {
     }
     let frame = 0;
     let start = 0;
+    let shownAt = 0;
     const tick = (now: number) => {
       start ||= now;
       const p = Math.min(1, (now - start) / WIN_COUNT_UP_MS);
-      setValue(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      // About 15 updates a second instead of one per frame (60–120 Hz), so the count-up
+      // doesn't load the JS thread while the stars and sparkles are animating.
+      if (p === 1 || now - shownAt >= COUNT_UP_STEP_MS) {
+        shownAt = now;
+        setValue(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      }
       if (p < 1) frame = requestAnimationFrame(tick);
     };
     const timer = setTimeout(() => (frame = requestAnimationFrame(tick)), WIN_COUNT_UP_DELAY_MS);
@@ -68,7 +75,8 @@ const CountUpText = memo(function CountUpText({ target, enabled, style }: { targ
 function SpinningCoin({ size, spin }: { size: number; spin: boolean }) {
   const t = useSharedValue(0);
   useEffect(() => {
-    if (spin) t.value = withRepeat(withTiming(1, { duration: 1800, easing: Easing.linear }), -1);
+    // Two flips while the number counts up, ending face-on (t = 2 → cos = 1).
+    if (spin) t.value = withDelay(WIN_COUNT_UP_DELAY_MS - 200, withTiming(2, { duration: 1100, easing: Easing.out(Easing.quad) }));
   }, [spin, t]);
   // A coin flip seen edge-on: squash horizontally, never fully to zero.
   const style = useAnimatedStyle(() => {
@@ -85,8 +93,10 @@ function SpinningCoin({ size, spin }: { size: number; spin: boolean }) {
 function Chip({ label, value, color }: { label: string; value?: number; color: SurfaceColor }) {
   return (
     <View style={[styles.chip, surfaceStyles[color]]}>
-      <Text style={styles.chipLabel}>{label}</Text>
-      {value !== undefined ? <Text style={styles.chipValue}>+{value}</Text> : null}
+      <OnColor value={isColorFace(color)}>
+        <Text style={styles.chipLabel}>{label}</Text>
+        {value !== undefined ? <Text style={styles.chipValue}>+{value}</Text> : null}
+      </OnColor>
     </View>
   );
 }
@@ -159,14 +169,17 @@ export const RewardDisplay = memo(function RewardDisplay({ reward, totalCoins, a
 
   return (
     <View style={styles.root}>
-      <View onLayout={onEarnedLayout}>
-        <HardShadow size="sm" corner="pill">
-          <View style={[styles.earned, cornerStyles.pill]}>
-            <SpinningCoin size={42} spin={animate} />
-            <CountUpText target={reward.total} enabled={animate} style={styles.earnedText} />
-          </View>
-        </HardShadow>
-      </View>
+      {/* Replays pay nothing: no "+0" pill, just the tag below. */}
+      {reward.total > 0 ? (
+        <View onLayout={onEarnedLayout}>
+          <HardShadow size="sm" corner="pill">
+            <View style={[styles.earned, cornerStyles.pill]}>
+              <SpinningCoin size={42} spin={animate} />
+              <CountUpText target={reward.total} enabled={animate} style={styles.earnedText} />
+            </View>
+          </HardShadow>
+        </View>
+      ) : null}
 
       <View style={styles.chips}>
         {reward.firstClearBonus > 0 ? (
@@ -176,7 +189,7 @@ export const RewardDisplay = memo(function RewardDisplay({ reward, totalCoins, a
             <Chip label="FIRST CLEAR" value={reward.firstClearBonus} color="success" />
           </>
         ) : (
-          <Chip label="REPLAY REWARD" color="surface" />
+          <Chip label="REPLAY · NO COINS" color="surface" />
         )}
       </View>
 
@@ -194,13 +207,13 @@ export const RewardDisplay = memo(function RewardDisplay({ reward, totalCoins, a
 });
 
 const hardTextShadow = {
-  textShadowColor: colors.ink,
+  textShadowColor: colors.artInk,
   textShadowOffset: { width: 3, height: 3 },
   // Android drops the shadow entirely at radius 0.
   textShadowRadius: 1,
 };
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { alignSelf: 'stretch', alignItems: 'center', gap: spacing.md },
   earned: {
     flexDirection: 'row',
@@ -216,7 +229,7 @@ const styles = StyleSheet.create({
   earnedText: {
     fontSize: fontSizes.xxl,
     fontWeight: fontWeights.heavy,
-    color: colors.surface,
+    color: palette.white,
     fontVariant: ['tabular-nums'],
     ...hardTextShadow,
   },
@@ -245,4 +258,4 @@ const styles = StyleSheet.create({
   balanceLabel: { ...textStyles.caption, color: colors.disabled, letterSpacing: 1 },
   balanceValue: { ...textStyles.number, color: colors.surface },
   flyCoin: { position: 'absolute', top: 0, left: '50%', marginLeft: -FLY_COIN / 2 },
-});
+}));

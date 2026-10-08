@@ -1,5 +1,6 @@
-import { memo, useEffect, useMemo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { memo, useEffect, useMemo, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { OnColor, Text } from '@/components/ui/Text';
 import Svg, { Defs, Path, Pattern, Rect } from 'react-native-svg';
 import Animated, {
   Easing,
@@ -22,8 +23,9 @@ import {
   trimEnd,
   zoneGeometry,
 } from '@/game/journey/mapGeometry';
-import { arrowColors, borderWidths, colors, fontWeights, palette, spacing, textStyles } from '@/theme';
+import { arrowColors, borderWidths, colors, fontWeights, palette, spacing, textStyles, themed } from '@/theme';
 import { withAlpha } from '@/utils/color';
+import type { Point } from '@/types';
 import { HEAD_GAP, JourneyHead } from './JourneyHead';
 import { JourneyTile, sizeFor, type TileCelebration } from './JourneyTile';
 
@@ -64,6 +66,8 @@ interface ChapterZoneProps {
   /** This zone's distance from the bottom of the map. */
   offsetFromBottom: number;
   reducedMotion: boolean;
+  /** Build tiles a frame after the board (zones scrolling in), or straight away (zones on open). */
+  deferTiles: boolean;
   onPressNode: (node: MapNode) => void;
 }
 
@@ -83,65 +87,70 @@ export const ChapterZone = memo(function ChapterZone({
   scrollY,
   offsetFromBottom,
   reducedMotion,
+  deferTiles,
   onPressNode,
 }: ChapterZoneProps) {
   const { chapter } = layout;
   const color = arrowColors[chapter.color];
   const geo = useMemo(() => zoneGeometry(layout, width), [layout, width]);
   const route = useMemo(() => routePx(layout, geo, exitsTop), [layout, geo, exitsTop]);
-  const px = (levelId: number) => {
-    const n = nodes.find((k) => k.levelId === levelId);
-    return n ? geo.toPx(n) : null;
-  };
+  const spurD = useMemo(() => (layout.spur ? polylineD(layout.spur.map(geo.toPx)) : null), [layout, geo]);
 
-  // Travelled part of the route: everything behind the current tile.
-  const currentPx = currentId !== null ? px(currentId) : null;
-  const fromPx = celebration?.fromId != null ? px(celebration.fromId) : null;
-  const animateLeg = !!(celebration && fromPx && currentPx && !reducedMotion);
-  const travelled = travelledAll ? route : currentPx ? splitAt(route, currentPx).before : [];
-  const staticTravelled = animateLeg ? splitAt(route, fromPx!).before : travelled;
-  const leg = animateLeg ? between(route, fromPx!, currentPx!) : [];
-  const headPath = currentPx ? (animateLeg ? trimEnd(leg, HEAD_GAP) : trimEnd(travelled, HEAD_GAP)) : null;
+  // A zone scrolling into view builds its board first and its tiles on the next frame, so the
+  // work lands as two small frames instead of one long one (the hitch while scrolling up).
+  // Decided once, at mount: zones present when the map opens draw tiles at once (no flicker).
+  const [tilesReady, setTilesReady] = useState(!deferTiles);
+  useEffect(() => {
+    if (tilesReady) return;
+    const id = requestAnimationFrame(() => setTilesReady(true));
+    return () => cancelAnimationFrame(id);
+  }, [tilesReady]);
+  const fromId = celebration?.fromId ?? null;
+  // Travelled part of the route (everything behind the current tile), the leg that fills in after
+  // a win, and the head's path. Memoized: a selection or shake must not redraw the board SVG.
+  const { animateLeg, staticTravelled, leg, headPath } = useMemo(() => {
+    const px = (levelId: number | null) => {
+      const n = levelId === null ? undefined : nodes.find((k) => k.levelId === levelId);
+      return n ? geo.toPx(n) : null;
+    };
+    const currentPx = px(currentId);
+    const fromPx = px(fromId);
+    const animate = !!(fromPx && currentPx && !reducedMotion);
+    const travelled = travelledAll ? route : currentPx ? splitAt(route, currentPx).before : [];
+    const legPts = animate ? between(route, fromPx!, currentPx!) : [];
+    return {
+      animateLeg: animate,
+      staticTravelled: animate ? splitAt(route, fromPx!).before : travelled,
+      leg: legPts,
+      headPath: currentPx ? trimEnd(animate ? legPts : travelled, HEAD_GAP) : null,
+    };
+  }, [nodes, geo, route, currentId, fromId, travelledAll, reducedMotion]);
 
-  const tileCelebration = (n: MapNode): TileCelebration | null => {
-    if (!celebration) return null;
-    const from = celebration.fromStars[n.levelId];
-    const unlocked = n.levelId === celebration.toId;
-    if (from === undefined && !unlocked) return null;
-    return { fromStars: from ?? n.stars, unlocked, delayMs: unlocked ? 350 + FILL_MS : 200 };
-  };
+  // One stable object per celebrating tile; every other tile gets null, so memo holds.
+  const tileCelebrations = useMemo(() => {
+    const out = new Map<number, TileCelebration>();
+    if (!celebration) return out;
+    for (const n of nodes) {
+      const from = celebration.fromStars[n.levelId];
+      const unlocked = n.levelId === celebration.toId;
+      if (from === undefined && !unlocked) continue;
+      out.set(n.levelId, { fromStars: from ?? n.stars, unlocked, delayMs: unlocked ? 350 + FILL_MS : 200 });
+    }
+    return out;
+  }, [celebration, nodes]);
 
   return (
     <View style={{ width, height: geo.height }}>
-      <Svg width={width} height={geo.height} style={StyleSheet.absoluteFill}>
-        <Defs>
-          <Pattern id={`chk-${chapter.id}`} width={CHECKER * 2} height={CHECKER * 2} patternUnits="userSpaceOnUse">
-            <Rect width={CHECKER} height={CHECKER} fill={withAlpha(color, 0.08)} />
-            <Rect x={CHECKER} y={CHECKER} width={CHECKER} height={CHECKER} fill={withAlpha(color, 0.08)} />
-          </Pattern>
-        </Defs>
-        <Rect width={width} height={geo.height} fill={colors.board} />
-        <Rect width={width} height={geo.height} fill={`url(#chk-${chapter.id})`} />
-        {route.length > 1 ? (
-          <>
-            <Path d={polylineD(route)} transform={`translate(${ROUTE_SHADOW} ${ROUTE_SHADOW})`} {...routeStroke(colors.ink, ROUTE_OUTLINE)} />
-            <Path d={polylineD(route)} {...routeStroke(colors.ink, ROUTE_OUTLINE)} />
-            <Path d={polylineD(route)} {...routeStroke(palette.cream, ROUTE_FILL)} />
-            {staticTravelled.length > 1 ? <Path d={polylineD(staticTravelled)} {...routeStroke(color, ROUTE_FILL)} /> : null}
-            {animateLeg ? <FillingLeg points={leg} color={color} /> : null}
-          </>
-        ) : null}
-        {layout.spur ? (
-          <Path
-            d={polylineD(layout.spur.map(geo.toPx))}
-            stroke={colors.ink}
-            strokeWidth={3}
-            strokeDasharray="2 7"
-            strokeLinecap="round"
-            fill="none"
-          />
-        ) : null}
-      </Svg>
+      <ZoneBoard
+        chapterId={chapter.id}
+        width={width}
+        height={geo.height}
+        color={color}
+        route={route}
+        travelled={staticTravelled}
+        leg={animateLeg ? leg : null}
+        spur={spurD}
+      />
 
       <Decorations width={width} height={geo.height} color={color} scrollY={scrollY} offsetFromBottom={offsetFromBottom} reducedMotion={reducedMotion} />
 
@@ -159,7 +168,7 @@ export const ChapterZone = memo(function ChapterZone({
         <MoreSoon at={geo.toPx(nodes[nodes.length - 1])} />
       ) : null}
 
-      {nodes.map((n) => {
+      {tilesReady ? nodes.map((n) => {
         const p = geo.toPx(n);
         const size = sizeFor(n);
         return (
@@ -169,7 +178,7 @@ export const ChapterZone = memo(function ChapterZone({
               color={color}
               selected={n.levelId === selectedId}
               shakeToken={shake?.levelId === n.levelId ? shake.token : 0}
-              celebration={tileCelebration(n)}
+              celebration={tileCelebrations.get(n.levelId) ?? null}
               reducedMotion={reducedMotion}
               onPress={onPressNode}
             />
@@ -182,9 +191,9 @@ export const ChapterZone = memo(function ChapterZone({
             ) : null}
           </View>
         );
-      })}
+      }) : null}
 
-      {headPath && headPath.length > 0 ? (
+      {tilesReady && headPath && headPath.length > 0 ? (
         <JourneyHead
           animal={chapter.mascot}
           color={color}
@@ -195,6 +204,55 @@ export const ChapterZone = memo(function ChapterZone({
         />
       ) : null}
     </View>
+  );
+});
+
+/**
+ * The zone's static drawing: checkerboard, route outline, travelled colour. Its own memo so it
+ * only redraws when the route changes, never on a tap or a focus change.
+ */
+const ZoneBoard = memo(function ZoneBoard({
+  chapterId,
+  width,
+  height,
+  color,
+  route,
+  travelled,
+  leg,
+  spur,
+}: {
+  chapterId: string;
+  width: number;
+  height: number;
+  color: string;
+  route: Point[];
+  travelled: Point[];
+  leg: Point[] | null;
+  spur: string | null;
+}) {
+  const routeD = useMemo(() => polylineD(route), [route]);
+  const travelledD = useMemo(() => (travelled.length > 1 ? polylineD(travelled) : null), [travelled]);
+  return (
+    <Svg width={width} height={height} style={StyleSheet.absoluteFill}>
+      <Defs>
+        <Pattern id={`chk-${chapterId}`} width={CHECKER * 2} height={CHECKER * 2} patternUnits="userSpaceOnUse">
+          <Rect width={CHECKER} height={CHECKER} fill={withAlpha(color, 0.08)} />
+          <Rect x={CHECKER} y={CHECKER} width={CHECKER} height={CHECKER} fill={withAlpha(color, 0.08)} />
+        </Pattern>
+      </Defs>
+      <Rect width={width} height={height} fill={colors.board} />
+      <Rect width={width} height={height} fill={`url(#chk-${chapterId})`} />
+      {route.length > 1 ? (
+        <>
+          <Path d={routeD} transform={`translate(${ROUTE_SHADOW} ${ROUTE_SHADOW})`} {...routeStroke(colors.artInk, ROUTE_OUTLINE)} />
+          <Path d={routeD} {...routeStroke(colors.artInk, ROUTE_OUTLINE)} />
+          <Path d={routeD} {...routeStroke(palette.cream, ROUTE_FILL)} />
+          {travelledD ? <Path d={travelledD} {...routeStroke(color, ROUTE_FILL)} /> : null}
+          {leg ? <FillingLeg points={leg} color={color} /> : null}
+        </>
+      ) : null}
+      {spur ? <Path d={spur} stroke={colors.ink} strokeWidth={3} strokeDasharray="2 7" strokeLinecap="round" fill="none" /> : null}
+    </Svg>
   );
 });
 
@@ -220,7 +278,7 @@ function FillingLeg({ points, color }: { points: { x: number; y: number }[]; col
   );
 }
 
-function ChapterCard({
+const ChapterCard = memo(function ChapterCard({
   number,
   title,
   lesson,
@@ -251,7 +309,9 @@ function ChapterCard({
       <View style={styles.cardShadow} />
       <View style={styles.cardFace}>
         <View style={[styles.cardBadge, { backgroundColor: color }]}>
-          <Text style={styles.cardBadgeText}>{number}</Text>
+          <OnColor>
+            <Text style={styles.cardBadgeText}>{number}</Text>
+          </OnColor>
         </View>
         <View style={styles.cardText}>
           <Text style={styles.cardEyebrow}>CHAPTER {number}</Text>
@@ -265,24 +325,26 @@ function ChapterCard({
       </View>
     </Animated.View>
   );
-}
+});
 
-function MoreSoon({ at }: { at: { x: number; y: number } }) {
+const MoreSoon = memo(function MoreSoon({ at }: { at: { x: number; y: number } }) {
   return (
     <View pointerEvents="none" style={[styles.soon, { top: at.y - 92 }]}>
       <Text style={styles.soonText}>MORE LEVELS ON THE WAY</Text>
     </View>
   );
-}
+});
 
 /** A few outlined arrow fragments drifting slower than the map (subtle parallax). */
+/** Each fragment fits a 28-unit box; the box adds room for the stroke. */
+const DECOR_BOX = 34;
 const DECOR = [
   { d: 'M0 30 H22 V0', x: 0.86, y: 0.3 },
   { d: 'M0 0 V24 H26 V6', x: 0.08, y: 0.62 },
   { d: 'M0 14 L14 0 L28 14', x: 0.9, y: 0.82 },
 ];
 
-function Decorations({
+const Decorations = memo(function Decorations({
   width,
   height,
   color,
@@ -302,33 +364,33 @@ function Decorations({
   }));
   return (
     <Animated.View pointerEvents="none" style={[StyleSheet.absoluteFill, style]}>
-      <Svg width={width} height={height}>
-        {DECOR.map((dcr, i) => (
-          <Path
-            key={i}
-            d={dcr.d}
-            transform={`translate(${dcr.x * width - 14} ${dcr.y * height})`}
-            stroke={withAlpha(color, 0.45)}
-            strokeWidth={4}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-          />
-        ))}
-      </Svg>
+      {/* A small SVG per fragment: one zone-sized SVG for three short strokes was a big draw. */}
+      {DECOR.map((dcr, i) => (
+        <Svg
+          key={i}
+          width={DECOR_BOX}
+          height={DECOR_BOX}
+          viewBox={`-3 -3 ${DECOR_BOX} ${DECOR_BOX}`}
+          style={[styles.decor, { left: dcr.x * width - 14 - 3, top: dcr.y * height - 3 }]}
+        >
+          <Path d={dcr.d} stroke={withAlpha(color, 0.45)} strokeWidth={4} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+        </Svg>
+      ))}
     </Animated.View>
   );
-}
+});
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   tileSlot: { position: 'absolute', alignItems: 'center' },
+  decor: { position: 'absolute' },
   playRow: { position: 'absolute', left: -20, right: -20, alignItems: 'center' },
   playTab: { backgroundColor: colors.ink, paddingHorizontal: spacing.sm, paddingVertical: 2 },
-  playText: { ...textStyles.caption, color: palette.cream, fontWeight: fontWeights.heavy, letterSpacing: 1.5 },
-  card: { position: 'absolute', bottom: 22, height: 84 },
-  cardShadow: { position: 'absolute', left: 5, top: 5, right: -5, bottom: -5, backgroundColor: colors.ink },
+  playText: { ...textStyles.caption, color: colors.inverseInk, fontWeight: fontWeights.heavy, letterSpacing: 1.5 },
+  card: { position: 'absolute', bottom: 22 },
+  cardShadow: { position: 'absolute', left: 5, top: 5, right: -5, bottom: -5, backgroundColor: colors.shadow },
   cardFace: {
-    flex: 1,
+    minHeight: 84,
+    paddingVertical: spacing.xs,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.sm,
@@ -355,11 +417,11 @@ const styles = StyleSheet.create({
     ...textStyles.caption,
     color: colors.inkMuted,
     letterSpacing: 1.5,
-    backgroundColor: palette.cream,
+    backgroundColor: colors.paper,
     borderWidth: borderWidths.thin,
     borderColor: withAlpha(colors.ink, 0.35),
     borderStyle: 'dashed',
     paddingHorizontal: spacing.sm,
     paddingVertical: 2,
   },
-});
+}));

@@ -5,12 +5,11 @@ import Animated, {
   Easing,
   useAnimatedStyle,
   useSharedValue,
-  withRepeat,
   withSpring,
   withTiming,
 } from 'react-native-reanimated';
-import { SUNBURST_TURN_MS } from '@/constants/animation';
-import { colors } from '@/theme';
+import { SUNBURST_TURN_DEG, SUNBURST_TURN_MS } from '@/constants/animation';
+import { colors, themed } from '@/theme';
 
 const RAYS = 16;
 
@@ -25,7 +24,9 @@ export const Sunburst = memo(function Sunburst({ reducedMotion }: { reducedMotio
   useEffect(() => {
     if (reducedMotion) return;
     grow.value = withSpring(1, { damping: 14, stiffness: 90 });
-    turn.value = withRepeat(withTiming(360, { duration: SUNBURST_TURN_MS, easing: Easing.linear }), -1);
+    // One slow quarter-ish turn as it grows, then it holds: a forever-spinning layer the size of the
+    // screen diagonal kept the GPU busy for as long as the win screen was open.
+    turn.value = withTiming(SUNBURST_TURN_DEG, { duration: SUNBURST_TURN_MS, easing: Easing.out(Easing.cubic) });
   }, [reducedMotion, grow, turn]);
 
   const d = useMemo(() => {
@@ -46,8 +47,8 @@ export const Sunburst = memo(function Sunburst({ reducedMotion }: { reducedMotio
 
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.center]}>
-      {/* Cached as a GPU texture: rotating it no longer repaints the SVG every frame. */}
-      <Animated.View style={[{ width: size, height: size }, style]} renderToHardwareTextureAndroid shouldRasterizeIOS>
+      {/* Rotation is a view transform: the SVG's drawing is cached and not repainted per frame. */}
+      <Animated.View style={[{ width: size, height: size }, style]}>
         <Svg width={size} height={size}>
           <Path d={d} fill={colors.primary} opacity={0.35} />
         </Svg>
@@ -56,6 +57,6 @@ export const Sunburst = memo(function Sunburst({ reducedMotion }: { reducedMotio
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   center: { alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-});
+}));

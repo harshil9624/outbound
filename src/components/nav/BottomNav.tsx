@@ -1,12 +1,13 @@
 import type { ComponentType } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import { playSound } from '@/audio/sounds';
 import { FlameIcon, GearIcon, HomeIcon, RouteIcon } from '@/components/icons';
 import { HardShadow, cornerStyles } from '@/components/ui/HardShadow';
 import { surfaceStyles } from '@/components/ui/surfaceStyles';
-import { borderWidths, colors, spacing, textStyles, type SurfaceColor } from '@/theme';
+import { borderWidths, colors, palette, spacing, textStyles, type SurfaceColor, themed } from '@/theme';
 
 interface TabSpec {
   label: string;
@@ -62,9 +63,9 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
                         pressed && styles.bubblePressed,
                       ]}
                     >
-                      <spec.Icon size={ICON} color={focused ? colors.surface : colors.disabled} />
+                      <spec.Icon size={ICON} color={focused ? palette.white : colors.disabled} />
                     </View>
-                    <Text style={[styles.label, focused && styles.labelActive]} numberOfLines={1}>
+                    <Text style={[styles.label, focused && styles.labelActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                       {spec.label}
                     </Text>
                   </>
@@ -78,7 +79,7 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: {
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
@@ -106,4 +107,4 @@ const styles = StyleSheet.create({
   bubblePressed: { transform: [{ scale: 0.92 }] },
   label: { ...textStyles.caption, fontSize: 10, color: colors.inkMuted },
   labelActive: { color: colors.ink, fontWeight: '900' },
-});
+}));

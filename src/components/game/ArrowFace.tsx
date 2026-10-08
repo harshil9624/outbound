@@ -15,15 +15,15 @@ import type { BoardLayout } from '@/game/layout/boardLayout';
 import { buildArrowRenderGeometry } from '@/game/layout/arrowGeometry';
 import { HINT_PULSE_MS, OUCH_MS } from '@/constants/animation';
 import { ARROW_FACE_BOX } from '@/constants/board';
-import { arrowColors, colors } from '@/theme';
-import { AnimalFace, type Animal, type FaceMood } from './AnimalFace';
+import { arrowColors, colors, themed } from '@/theme';
+import { AnimalFace, type FaceAnimal, type FaceMood } from './AnimalFace';
 import type { ArrowMotion } from './ArrowPath';
 
 interface ArrowFaceProps {
   arrow: BoardArrow;
   layout: BoardLayout;
   motion: ArrowMotion;
-  animal: Animal;
+  animal: FaceAnimal;
   /** Hammer armed: every arrow looks nervous. */
   scared: boolean;
   /** Changes → "ouch" face for a moment (this arrow just bumped into a blocker). 0 = idle. */
@@ -111,7 +111,7 @@ export const ArrowFace = memo(function ArrowFace({
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   abs: { position: 'absolute' },
   ring: { borderWidth: 4, borderColor: colors.accent, backgroundColor: 'rgba(255,79,163,0.15)' },
-});
+}));

@@ -25,6 +25,8 @@
     "ios": "expo run:ios"
   },
   "dependencies": {
+    "@expo-google-fonts/lilita-one": "^0.4.1",
+    "@expo-google-fonts/nunito": "^0.4.2",
     "expo": "~54.0.37",
     "expo-audio": "~1.1.1",
     "expo-constants": "~18.0.14",
@@ -46,5 +48,10 @@
     "@types/bun": "^1.4.2",
     "@types/react": "~19.1.10",
     "typescript": "~5.9.2"
+  },
+  "reanimated": {
+    "staticFeatureFlags": {
+      "ANDROID_SYNCHRONOUSLY_UPDATE_UI_PROPS": true
+    }
   }
 }

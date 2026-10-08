@@ -7,29 +7,50 @@ interface SettingsData {
   soundEnabled: boolean;
   vibrationEnabled: boolean;
   reducedMotion: boolean;
+  /**
+   * The player has set Reduced motion themselves. Until then it follows the phone's own
+   * "Remove animations" setting (see followSystemMotion).
+   */
+  reducedMotionChosen: boolean;
 }
 
+type SettingKey = 'soundEnabled' | 'vibrationEnabled' | 'reducedMotion';
+
 interface SettingsActions {
-  setSetting: <K extends keyof SettingsData>(key: K, value: SettingsData[K]) => void;
+  setSetting: <K extends SettingKey>(key: K, value: SettingsData[K]) => void;
+  /** The phone's reduce-motion setting changed: applied only while the player hasn't chosen. */
+  applySystemReducedMotion: (enabled: boolean) => void;
 }
 
 export type SettingsStore = SettingsData & SettingsActions;
 
 export const useSettingsStore = create<SettingsStore>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       soundEnabled: true,
       vibrationEnabled: true,
       reducedMotion: false,
-      setSetting: (key, value) => set({ [key]: value } as Pick<SettingsData, typeof key>),
+      reducedMotionChosen: false,
+      setSetting: (key, value) =>
+        set({ [key]: value, ...(key === 'reducedMotion' ? { reducedMotionChosen: true } : null) } as Partial<SettingsData>),
+      applySystemReducedMotion: (enabled) => {
+        const s = get();
+        if (!s.reducedMotionChosen && s.reducedMotion !== enabled) set({ reducedMotion: enabled });
+      },
     }),
     {
       name: STORAGE_KEYS.settings,
       storage: zustandStorage,
-      version: 1,
-      partialize: ({ soundEnabled, vibrationEnabled, reducedMotion }) => ({
-        soundEnabled, vibrationEnabled, reducedMotion,
+      version: 2,
+      partialize: ({ soundEnabled, vibrationEnabled, reducedMotion, reducedMotionChosen }) => ({
+        soundEnabled, vibrationEnabled, reducedMotion, reducedMotionChosen,
       }),
+      migrate: (persisted, fromVersion) => {
+        const data = persisted as SettingsData;
+        // v2 added reducedMotionChosen: someone who already switched it on chose it.
+        if (fromVersion < 2) return { ...data, reducedMotionChosen: data.reducedMotion === true };
+        return data;
+      },
     },
   ),
 );

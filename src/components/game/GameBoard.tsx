@@ -1,5 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { Pressable, StyleSheet, View, type GestureResponderEvent, type LayoutChangeEvent } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Svg from 'react-native-svg';
 import Animated, { useAnimatedStyle, useSharedValue, withSequence, withTiming } from 'react-native-reanimated';
 import type { GameState } from '@/types';
@@ -7,12 +8,13 @@ import type { BumpFeedback } from '@/store/gameStore';
 import { buildOccupancy } from '@/game/engine/occupancy';
 import { cellCenterPx, computeBoardLayout } from '@/game/layout/boardLayout';
 import { hitTestArrow } from '@/game/layout/hitTest';
-import { borderWidths, colors, radii, shadowOffsets, spacing, textStyles } from '@/theme';
+import { borderWidths, colors, palette, radii, shadowOffsets, spacing, textStyles, themed } from '@/theme';
 import { HardShadow } from '@/components/ui/HardShadow';
-import { ANIMALS } from './AnimalFace';
+import { BOARD_ANIMALS, type FaceAnimal } from '@/constants/animals';
 import { ArrowFace } from './ArrowFace';
 import { ArrowPath, createArrowMotion, type ArrowMotion } from './ArrowPath';
 import { BoardGrid } from './BoardGrid';
+import { CoachHand } from './CoachHand';
 import { HammerHover } from './HammerHover';
 import { HammerStrike, hammerSize } from './HammerStrike';
 
@@ -23,6 +25,8 @@ interface GameBoardProps {
   hintArrowId: string | null;
   bump: BumpFeedback | null;
   hammerArmed: boolean;
+  /** The guided first level: what to say above the board, and the arrow the hand taps. */
+  coach: { text: string; targetId: string | null } | null;
   reducedMotion: boolean;
   interactive: boolean;
   onTapArrow: (arrowId: string) => void;
@@ -46,11 +50,13 @@ function GameBoardComponent({
   hintArrowId,
   bump,
   hammerArmed,
+  coach,
   reducedMotion,
   interactive,
   onTapArrow,
   onExitComplete,
 }: GameBoardProps) {
+  const coachTarget = coach?.targetId ?? null;
   const [space, setSpace] = useState<{ w: number; h: number } | null>(null);
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
@@ -81,8 +87,8 @@ function GameBoardComponent({
   }, [game.arrowOrder]);
 
   const animals = useMemo(() => {
-    const a: Record<string, (typeof ANIMALS)[number]> = {};
-    game.arrowOrder.forEach((id, i) => (a[id] = ANIMALS[i % ANIMALS.length]));
+    const a: Record<string, FaceAnimal> = {};
+    game.arrowOrder.forEach((id, i) => (a[id] = BOARD_ANIMALS[i % BOARD_ANIMALS.length]));
     return a;
   }, [game.arrowOrder]);
 
@@ -101,22 +107,21 @@ function GameBoardComponent({
   const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
   const onBoardLayout = useCallback((e: LayoutChangeEvent) => {
     const { x, y } = e.nativeEvent.layout;
-    setOrigin({ x: x + borderWidths.thick, y: y + borderWidths.thick });
+    const next = { x: x + borderWidths.thick, y: y + borderWidths.thick };
+    setOrigin((prev) => (prev && prev.x === next.x && prev.y === next.y ? prev : next));
   }, []);
-  const hammer =
-    layout && origin && space
-      ? (() => {
-          const size = hammerSize(layout.cellSize);
-          return {
-            // Hovers by the board's top-right corner, clear of most arrows.
-            hoverX: origin.x + layout.width - size * 0.2,
-            hoverY: origin.y + size * 0.55,
-            // Flies in from below, roughly where the Hammer button sits.
-            belowX: origin.x + layout.width * 0.62,
-            belowY: space.h + size * 0.6,
-          };
-        })()
-      : null;
+  const hammer = useMemo(() => {
+    if (!layout || !origin || !space) return null;
+    const size = hammerSize(layout.cellSize);
+    return {
+      // Hovers by the board's top-right corner, clear of most arrows.
+      hoverX: origin.x + layout.width - size * 0.2,
+      hoverY: origin.y + size * 0.55,
+      // Flies in from below, roughly where the Hammer button sits.
+      belowX: origin.x + layout.width * 0.62,
+      belowY: space.h + size * 0.6,
+    };
+  }, [layout, origin, space]);
 
   // Hovering hammer while armed. On cancel it flies out; on a strike it hands over instantly.
   const [hoverShown, setHoverShown] = useState(false);
@@ -150,6 +155,14 @@ function GameBoardComponent({
     ]);
     setHoverShown(false);
   }, [smashingIds, layout, origin, reducedMotion, game.arrows, hoverShown]);
+  // Where the coach's hand taps: the target arrow's head, in overlay pixels.
+  const coachArrow = coachTarget ? game.arrows[coachTarget] : undefined;
+  const coachPoint = useMemo(() => {
+    if (!coachArrow || !layout || !origin) return null;
+    const head = cellCenterPx(layout, coachArrow.head);
+    return { x: origin.x + head.x, y: origin.y + head.y };
+  }, [coachArrow, layout, origin]);
+
   const endStrike = useCallback((id: string) => setStrikes((s) => s.filter((k) => k.id !== id)), []);
 
   // Board shudders when the hammer lands.
@@ -184,6 +197,12 @@ function GameBoardComponent({
           <View style={styles.banner}>
             <Text style={styles.bannerText}>TAP AN ARROW TO SMASH IT!</Text>
           </View>
+        ) : coach ? (
+          <View style={styles.coachBubble} accessibilityLiveRegion="polite">
+            <Text style={styles.coachText} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
+              {coach.text}
+            </Text>
+          </View>
         ) : null}
       </View>
       {layout ? (
@@ -205,7 +224,7 @@ function GameBoardComponent({
                       motion={motions[id]}
                       exiting={exitingSet.has(id)}
                       exitMode={smashingSet.has(id) ? 'smash' : 'slide'}
-                      hinted={hintArrowId === id}
+                      hinted={hintArrowId === id || coachTarget === id}
                       bumpToken={bump?.arrowId === id ? bump.token : 0}
                       flashToken={bump?.blockerId === id ? bump.token : 0}
                       reducedMotion={reducedMotion}
@@ -223,7 +242,7 @@ function GameBoardComponent({
                     scared={hammerArmed && !exitingSet.has(id)}
                     bumpToken={bump?.arrowId === id ? bump.token : 0}
                     smashing={smashingSet.has(id)}
-                    hinted={hintArrowId === id}
+                    hinted={hintArrowId === id || coachTarget === id}
                     reducedMotion={reducedMotion}
                   />
                 ))}
@@ -245,6 +264,7 @@ function GameBoardComponent({
               visible={hammerArmed}
             />
           ) : null}
+          {coachPoint ? <CoachHand x={coachPoint.x} y={coachPoint.y} cellSize={layout.cellSize} reducedMotion={reducedMotion} /> : null}
           {strikes.map((s) => (
             <HammerStrike
               key={s.id}
@@ -254,8 +274,9 @@ function GameBoardComponent({
               fromY={s.fromHover ? hammer.hoverY : hammer.belowY}
               spin={!s.fromHover}
               cellSize={layout.cellSize}
+              id={s.id}
               onImpact={onImpact}
-              onDone={() => endStrike(s.id)}
+              onDone={endStrike}
             />
           ))}
         </View>
@@ -266,7 +287,7 @@ function GameBoardComponent({
 
 export const GameBoard = memo(GameBoardComponent);
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   container: { flex: 1, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   bannerSlot: { height: BANNER_SPACE, justifyContent: 'center' },
   banner: {
@@ -277,7 +298,17 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     backgroundColor: colors.danger,
   },
-  bannerText: { ...textStyles.label, color: colors.surface },
+  bannerText: { ...textStyles.label, color: palette.white },
+  coachBubble: {
+    maxWidth: '100%',
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    borderWidth: borderWidths.regular,
+    borderColor: palette.black,
+    backgroundColor: palette.yellow,
+  },
+  coachText: { ...textStyles.label, color: palette.black, textAlign: 'center' },
   frame: {
     borderWidth: borderWidths.thick,
     borderColor: colors.ink,
@@ -285,4 +316,4 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   frameArmed: { borderColor: colors.danger },
-});
+}));

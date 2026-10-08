@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Outbound",
+    "name": "ArrowZing",
     "slug": "outbound",
     "scheme": "outbound",
     "version": "0.1.0",
@@ -14,7 +14,13 @@
     "android": {
       "package": "com.yourstudio.outbound",
       "versionCode": 1,
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "splash": {
+        "backgroundColor": "#FFF7E8",
+        "dark": {
+          "backgroundColor": "#1F1C18"
+        }
+      }
     },
     "plugins": [
       "expo-router",

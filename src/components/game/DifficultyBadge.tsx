@@ -1,19 +1,22 @@
 import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { OnColor, Text } from '@/components/ui/Text';
 import type { Difficulty } from '@/types';
-import { borderWidths, colors, spacing, textStyles } from '@/theme';
+import { borderWidths, colors, spacing, textStyles, themed } from '@/theme';
 
 const LABELS: Record<Difficulty, string> = { easy: 'Easy', normal: 'Normal', hard: 'Hard' };
 
 export const DifficultyBadge = memo(function DifficultyBadge({ difficulty }: { difficulty: Difficulty }) {
   return (
     <View style={[styles.badge, badgeColors[difficulty]]}>
-      <Text style={styles.text}>{LABELS[difficulty]}</Text>
+      <OnColor>
+        <Text style={styles.text}>{LABELS[difficulty]}</Text>
+      </OnColor>
     </View>
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   badge: {
     borderWidth: borderWidths.thin,
     borderColor: colors.ink,
@@ -21,10 +24,10 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xxs,
   },
   text: { ...textStyles.caption, color: colors.ink },
-});
+}));
 
-const badgeColors = StyleSheet.create({
+const badgeColors = themed(() => StyleSheet.create({
   easy: { backgroundColor: colors.success },
   normal: { backgroundColor: colors.info },
   hard: { backgroundColor: colors.accent },
-});
+}));

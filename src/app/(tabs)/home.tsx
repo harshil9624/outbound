@@ -1,9 +1,11 @@
-import { useCallback, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { APP_NAME } from '@/constants/app';
-import { chapterOfLevel, currentLevelId } from '@/game/journey/progress';
+import { ANIMAL_COLORS } from '@/constants/animals';
+import { chapterOfLevel, currentLevelId, hasUnmadeLevels } from '@/game/journey/progress';
 import { CHAPTERS } from '@/game/journey/chapters';
 import { getActiveStreak } from '@/game/progression/streak';
 import { levelProvider } from '@/game/levels/levelProvider';
@@ -11,17 +13,19 @@ import { usePlayerStore } from '@/store/playerStore';
 import { AnimalFace } from '@/components/game/AnimalFace';
 import { FlameIcon, RouteIcon, StarIcon } from '@/components/icons';
 import { LevelThumbnail } from '@/components/journey/LevelThumbnail';
-import { BrutalistButton, CoinDisplay, Decorations, Screen } from '@/components/ui';
+import { BrutalistButton, CoinDisplay, Decorations, OnColor, Screen } from '@/components/ui';
 import { HardShadow } from '@/components/ui/HardShadow';
-import { arrowColors, borderWidths, colors, fontWeights, palette, spacing, textStyles } from '@/theme';
-import { toDayKey } from '@/utils/date';
+import { arrowColors, borderWidths, colors, fontWeights, palette, spacing, textStyles, themed } from '@/theme';
+import { useToday } from '@/hooks/useToday';
 
-function greeting(): string {
-  const h = new Date().getHours();
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
+function greeting(hour: number): string {
+  // Past midnight is still "evening" to a player up late, not "morning".
+  if (hour >= 5 && hour < 12) return 'Good morning';
+  if (hour >= 12 && hour < 18) return 'Good afternoon';
   return 'Good evening';
 }
+
+const MORE_LEVELS_COMING = hasUnmadeLevels(levelProvider.hasLevel);
 
 export default function HomeRoute() {
   const router = useRouter();
@@ -37,6 +41,9 @@ export default function HomeRoute() {
     })),
   );
 
+  // Re-read on focus and on returning to the app: the tab stays mounted overnight.
+  const today = useToday();
+
   const currentId = currentLevelId(p, levelProvider.hasLevel);
   const level = currentId !== null ? levelProvider.getLevel(currentId) : null;
   const chapter = currentId !== null ? chapterOfLevel(currentId) : null;
@@ -44,15 +51,31 @@ export default function HomeRoute() {
   const chapterDone = chapter ? chapter.levelIds.filter((id) => p.completedLevels.includes(id)).length : 0;
   const chapterTotal = chapter ? chapter.levelIds.filter((id) => levelProvider.hasLevel(id)).length : 0;
   const color = chapter ? arrowColors[chapter.color] : colors.primary;
-  const totalStars = Object.values(p.stars).reduce((s, n) => s + n, 0);
-  const streak = getActiveStreak(p.streak, toDayKey());
-  const playedToday = p.streak.lastPlayedDay === toDayKey();
+  // Only levels that exist count: saved progress for a level that was removed or renumbered
+  // must not show "9/8 levels".
+  const { clearedCount, totalStars } = useMemo(() => {
+    const done = p.completedLevels.filter((id) => levelProvider.hasLevel(id));
+    const stars = Object.entries(p.stars).reduce((sum, [id, n]) => (levelProvider.hasLevel(Number(id)) ? sum + n : sum), 0);
+    return { clearedCount: done.length, totalStars: stars };
+  }, [p.completedLevels, p.stars]);
+  const streak = getActiveStreak(p.streak, today.day);
+  const playedToday = p.streak.lastPlayedDay === today.day;
 
+  // One level per tap: a double tap on PLAY used to push two level screens (back then landed on
+  // an already-ended session). Re-armed whenever Home is back in view.
+  const opening = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      opening.current = false;
+    }, []),
+  );
   const onPlay = useCallback(() => {
     if (currentId === null) {
       router.navigate('/journey');
       return;
     }
+    if (opening.current) return;
+    opening.current = true;
     router.push({ pathname: '/level/[levelId]', params: { levelId: String(currentId) } });
   }, [router, currentId]);
 
@@ -68,10 +91,10 @@ export default function HomeRoute() {
             accessibilityLabel={`Profile: ${p.name}. Edit in settings`}
           >
             <View style={styles.avatar}>
-              <AnimalFace animal={p.avatar} color={color} dir={{ x: 1, y: 0 }} mood="happy" size={54} />
+              <AnimalFace animal={p.avatar} color={arrowColors[ANIMAL_COLORS[p.avatar]]} dir={{ x: 1, y: 0 }} mood="happy" size={54} />
             </View>
             <View style={styles.hello}>
-              <Text style={styles.helloSmall}>{greeting()},</Text>
+              <Text style={styles.helloSmall}>{greeting(today.hour)},</Text>
               <Text style={styles.helloName} numberOfLines={1}>
                 {p.name}
               </Text>
@@ -82,15 +105,21 @@ export default function HomeRoute() {
 
         <View style={styles.wordmarkRow}>
           <View style={styles.wordmark}>
-            <Text style={styles.wordmarkText}>{APP_NAME}</Text>
+            <Text style={styles.wordmarkText} numberOfLines={1} adjustsFontSizeToFit>
+              {APP_NAME}
+            </Text>
           </View>
         </View>
 
         <HardShadow size="lg">
           <View style={styles.continueCard}>
             <View style={[styles.continueBand, { backgroundColor: color }]}>
-              <Text style={styles.bandEyebrow}>{chapter ? `CHAPTER ${chapterNumber}` : 'JOURNEY'}</Text>
-              <Text style={styles.bandTitle}>{chapter ? chapter.title : 'All caught up'}</Text>
+              <OnColor>
+                <Text style={styles.bandEyebrow}>{chapter ? `CHAPTER ${chapterNumber}` : 'JOURNEY'}</Text>
+                <Text style={styles.bandTitle} numberOfLines={1}>
+                  {chapter ? chapter.title : 'All caught up'}
+                </Text>
+              </OnColor>
             </View>
             <View style={styles.continueBody}>
               {level ? (
@@ -99,8 +128,8 @@ export default function HomeRoute() {
                 </View>
               ) : null}
               <View style={styles.continueInfo}>
-                <Text style={styles.continueEyebrow}>{level ? 'NEXT UP' : 'NEW LEVELS SOON'}</Text>
-                <Text style={styles.continueLevel}>{level ? `Level ${level.id}` : 'You cleared everything'}</Text>
+                <Text style={styles.continueEyebrow}>{level ? 'NEXT UP' : MORE_LEVELS_COMING ? 'NEW LEVELS SOON' : 'ALL DONE'}</Text>
+                <Text style={styles.continueLevel}>{level ? `Level ${level.id}` : MORE_LEVELS_COMING ? 'You\'re all caught up' : 'You cleared everything!'}</Text>
                 {chapter ? (
                   <View style={styles.progressRow}>
                     <View style={styles.progressTrack}>
@@ -132,7 +161,7 @@ export default function HomeRoute() {
             color={palette.blue}
             icon={<RouteIcon size={30} color={palette.yellow} />}
             title="Journey"
-            detail={`${p.completedLevels.length}/${levelProvider.count()} levels`}
+            detail={`${clearedCount}/${levelProvider.count()} levels`}
             extra={
               <View style={styles.inline}>
                 <StarIcon size={14} />
@@ -174,14 +203,16 @@ function Tile({
       {({ pressed }) => (
         <HardShadow size="md">
           <View style={[styles.tile, { backgroundColor: color }, pressed && styles.pressed]}>
-            {icon}
-            <Text style={styles.tileTitle} numberOfLines={1}>
-              {title}
-            </Text>
-            <Text style={styles.tileDetail} numberOfLines={2}>
-              {detail}
-            </Text>
-            {extra}
+            <OnColor>
+              {icon}
+              <Text style={styles.tileTitle} numberOfLines={1}>
+                {title}
+              </Text>
+              <Text style={styles.tileDetail} numberOfLines={2}>
+                {detail}
+              </Text>
+              {extra}
+            </OnColor>
           </View>
         </HardShadow>
       )}
@@ -189,7 +220,7 @@ function Tile({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   screen: { paddingBottom: 0 },
   content: { gap: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xxl },
   topBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.md },
@@ -212,7 +243,10 @@ const styles = StyleSheet.create({
   wordmark: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.xs,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.artInk,
+    // Chalk edge in dark mode; in light mode it matches the black band.
+    borderWidth: borderWidths.thin,
+    borderColor: colors.ink,
     transform: [{ rotate: '-2deg' }],
   },
   wordmarkText: { fontSize: 30, fontWeight: fontWeights.heavy, color: palette.yellow, letterSpacing: 1 },
@@ -231,7 +265,7 @@ const styles = StyleSheet.create({
   continueEyebrow: { ...textStyles.caption, letterSpacing: 1.2 },
   continueLevel: { fontSize: 26, fontWeight: fontWeights.heavy, color: colors.ink },
   progressRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
-  progressTrack: { flex: 1, height: 12, borderWidth: borderWidths.thin, borderColor: colors.ink, backgroundColor: palette.cream },
+  progressTrack: { flex: 1, height: 12, borderWidth: borderWidths.thin, borderColor: colors.ink, backgroundColor: colors.paper },
   progressFill: { height: '100%' },
   progressText: { ...textStyles.label, fontVariant: ['tabular-nums'] },
   continueAction: { paddingHorizontal: spacing.lg, paddingBottom: spacing.lg },
@@ -244,4 +278,4 @@ const styles = StyleSheet.create({
   tileDetail: { ...textStyles.caption, color: colors.ink },
   tileExtra: { ...textStyles.caption, color: colors.ink, fontWeight: fontWeights.heavy },
   inline: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-});
+}));

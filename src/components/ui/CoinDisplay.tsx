@@ -1,31 +1,48 @@
-import { memo, useEffect, useRef, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { memo, useCallback, useEffect, useRef, useState } from 'react';
+import { StyleSheet, View } from 'react-native';
+import { Text } from './Text';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { CoinIcon } from '@/components/icons';
-import { borderWidths, colors, fontSizes, fontWeights, spacing, textStyles } from '@/theme';
+import { MAX_FONT_SCALE, borderWidths, colors, fonts, fontSizes, spacing, textStyles, themed } from '@/theme';
 import { HardShadow, cornerStyles } from './HardShadow';
 
 interface CoinDisplayProps {
   coins: number;
   /** When the balance drops, bump the pill and float a red "-N" off it. */
   showSpend?: boolean;
+  /**
+   * Coins just earned on this screen: bump the pill and float a green "+N". Passed explicitly
+   * (a new token per gain), not read from the balance, so coins earned elsewhere while the screen
+   * was hidden don't celebrate when it comes back into view.
+   */
+  gain?: { amount: number; token: number } | null;
 }
 
-export const CoinDisplay = memo(function CoinDisplay({ coins, showSpend = false }: CoinDisplayProps) {
+export const CoinDisplay = memo(function CoinDisplay({ coins, showSpend = false, gain = null }: CoinDisplayProps) {
   const prev = useRef(coins);
-  const [spent, setSpent] = useState<{ amount: number; token: number } | null>(null);
+  const [change, setChange] = useState<{ text: string; up: boolean; token: number } | null>(null);
   const bump = useSharedValue(1);
   const float = useSharedValue(1);
+
+  const pop = useCallback(
+    (text: string, up: boolean) => {
+      setChange((c) => ({ text, up, token: (c?.token ?? 0) + 1 }));
+      bump.value = withSequence(withTiming(1.18, { duration: 80 }), withSpring(1, { damping: 7, stiffness: 260 }));
+      float.value = 0;
+      float.value = withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) });
+    },
+    [bump, float],
+  );
 
   useEffect(() => {
     const drop = prev.current - coins;
     prev.current = coins;
-    if (!showSpend || drop <= 0) return;
-    setSpent((s) => ({ amount: drop, token: (s?.token ?? 0) + 1 }));
-    bump.value = withSequence(withTiming(1.18, { duration: 80 }), withSpring(1, { damping: 7, stiffness: 260 }));
-    float.value = 0;
-    float.value = withTiming(1, { duration: 1100, easing: Easing.out(Easing.cubic) });
-  }, [coins, showSpend, bump, float]);
+    if (showSpend && drop > 0) pop(`-${drop}`, false);
+  }, [coins, showSpend, pop]);
+
+  useEffect(() => {
+    if (gain && gain.amount > 0) pop(`+${gain.amount}`, true);
+  }, [gain, pop]);
 
   const pillStyle = useAnimatedStyle(() => ({ transform: [{ scale: bump.value }] }));
   const spendStyle = useAnimatedStyle(() => ({
@@ -43,16 +60,21 @@ export const CoinDisplay = memo(function CoinDisplay({ coins, showSpend = false 
           </View>
         </HardShadow>
       </Animated.View>
-      {spent ? (
-        <Animated.Text key={spent.token} pointerEvents="none" style={[styles.spent, spendStyle]}>
-          -{spent.amount}
+      {change ? (
+        <Animated.Text
+          key={change.token}
+          pointerEvents="none"
+          style={[styles.spent, change.up && styles.gained, spendStyle]}
+          maxFontSizeMultiplier={MAX_FONT_SCALE}
+        >
+          {change.text}
         </Animated.Text>
       ) : null}
     </View>
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   pill: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -69,10 +91,11 @@ const styles = StyleSheet.create({
     top: '100%',
     right: spacing.sm,
     fontSize: fontSizes.lg,
-    fontWeight: fontWeights.heavy,
+    fontFamily: fonts.display,
     color: colors.danger,
-    textShadowColor: colors.ink,
+    textShadowColor: colors.artInk,
     textShadowOffset: { width: 2, height: 2 },
     textShadowRadius: 1,
   },
-});
+  gained: { color: colors.success },
+}));

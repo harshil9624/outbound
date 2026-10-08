@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
-import { borderWidths, colors, spacing, type ShadowSize, type SurfaceColor } from '@/theme';
+import { borderWidths, colors, spacing, type ShadowSize, type SurfaceColor, themed } from '@/theme';
 import { HardShadow, cornerStyles, type CornerSize } from './HardShadow';
-import { surfaceStyles } from './surfaceStyles';
+import { isColorFace, surfaceStyles } from './surfaceStyles';
+import { OnColor } from './Text';
 
 interface BrutalistCardProps {
   color?: SurfaceColor;
@@ -23,15 +24,17 @@ export function BrutalistCard({
 }: BrutalistCardProps) {
   return (
     <HardShadow size={shadow} corner={corner} style={style}>
-      <View style={[styles.face, surfaceStyles[color], cornerStyles[corner], contentStyle]}>{children}</View>
+      <View style={[styles.face, surfaceStyles[color], cornerStyles[corner], contentStyle]}>
+        <OnColor value={isColorFace(color)}>{children}</OnColor>
+      </View>
     </HardShadow>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   face: {
     borderWidth: borderWidths.thick,
     borderColor: colors.ink,
     padding: spacing.lg,
   },
-});
+}));

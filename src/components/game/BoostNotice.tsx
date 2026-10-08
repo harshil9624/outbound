@@ -1,7 +1,8 @@
 import { memo, useEffect } from 'react';
-import { StyleSheet, Text } from 'react-native';
+import { StyleSheet } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Animated, { useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming } from 'react-native-reanimated';
-import { borderWidths, colors, radii, spacing, textStyles } from '@/theme';
+import { borderWidths, colors, radii, spacing, textStyles, themed } from '@/theme';
 
 const VISIBLE_MS = 1500;
 
@@ -31,10 +32,11 @@ export const BoostNotice = memo(function BoostNotice({ notice }: { notice: { tex
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   toast: {
     position: 'absolute',
     alignSelf: 'center',
+    maxWidth: '100%',
     bottom: '100%',
     marginBottom: spacing.sm,
     paddingHorizontal: spacing.lg,
@@ -44,5 +46,5 @@ const styles = StyleSheet.create({
     borderColor: colors.ink,
     backgroundColor: colors.ink,
   },
-  text: { ...textStyles.label, color: colors.surface },
-});
+  text: { ...textStyles.label, color: colors.surface, textAlign: 'center' },
+}));

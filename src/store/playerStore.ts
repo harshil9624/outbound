@@ -9,7 +9,7 @@ import {
   streakDayKeys,
   type StreakState,
 } from '@/game/progression/streak';
-import type { Animal } from '@/constants/animals';
+import { AVATARS, type FaceAnimal } from '@/constants/animals';
 import { STORAGE_KEYS } from '@/storage/storageKeys';
 import { zustandStorage } from '@/storage/zustandStorage';
 import { toDayKey } from '@/utils/date';
@@ -17,7 +17,7 @@ import { toDayKey } from '@/utils/date';
 interface PlayerData {
   /** Shown on Home and in Settings; editable. */
   name: string;
-  avatar: Animal;
+  avatar: FaceAnimal;
   coins: number;
   currentLevel: number;
   unlockedLevel: number;
@@ -34,6 +34,8 @@ interface PlayerData {
   playDays: string[];
   /** Streak milestones (in days) already paid out. */
   streakRewardsClaimed: number[];
+  /** The guided first level has been finished once; the coach never shows again. */
+  tutorialDone: boolean;
 }
 
 export interface MapSeen {
@@ -50,10 +52,11 @@ interface PlayerActions {
   applyLevelResult: (result: LevelResult, nextLevel: number | null) => void;
   markMapSeen: () => void;
   setName: (name: string) => void;
-  setAvatar: (avatar: Animal) => void;
+  setAvatar: (avatar: FaceAnimal) => void;
   /** Pays a reached milestone once. Returns the coins paid (0 if not claimable). */
   claimStreakReward: (days: number) => number;
   resetProgress: () => void;
+  markTutorialDone: () => void;
 }
 
 export type PlayerStore = PlayerData & PlayerActions;
@@ -72,6 +75,7 @@ const INITIAL_PLAYER: PlayerData = {
   mapSeen: { unlockedLevel: 1, stars: {} },
   playDays: [],
   streakRewardsClaimed: [],
+  tutorialDone: false,
 };
 
 export const usePlayerStore = create<PlayerStore>()(
@@ -102,6 +106,8 @@ export const usePlayerStore = create<PlayerStore>()(
             stars: result.stars > prevStars ? { ...s.stars, [result.levelId]: result.stars } : s.stars,
             unlockedLevel: nextLevel === null ? s.unlockedLevel : Math.max(s.unlockedLevel, nextLevel),
             currentLevel: nextLevel === null ? s.currentLevel : Math.max(s.currentLevel, nextLevel),
+            // Any clear counts as playing today, replays included: the streak rewards the daily
+            // habit. Replays pay no coins, so this can't be farmed for rewards.
             streak: registerPlayDay(s.streak, toDayKey()),
             playDays: s.playDays.includes(toDayKey()) ? s.playDays : [...s.playDays, toDayKey()],
           };
@@ -114,7 +120,9 @@ export const usePlayerStore = create<PlayerStore>()(
         if (clean) set({ name: clean });
       },
 
-      setAvatar: (avatar) => set({ avatar }),
+      setAvatar: (avatar) => {
+        if (AVATARS.includes(avatar)) set({ avatar });
+      },
 
       claimStreakReward: (days) => {
         const s = get();
@@ -124,13 +132,15 @@ export const usePlayerStore = create<PlayerStore>()(
         return milestone.coins;
       },
 
-      // Progress is wiped; the player keeps their name and avatar.
-      resetProgress: () => set((s) => ({ ...INITIAL_PLAYER, name: s.name, avatar: s.avatar })),
+      // Progress is wiped; the player keeps their name, avatar, and knowing how to play.
+      resetProgress: () => set((s) => ({ ...INITIAL_PLAYER, name: s.name, avatar: s.avatar, tutorialDone: s.tutorialDone })),
+
+      markTutorialDone: () => set((s) => (s.tutorialDone ? s : { tutorialDone: true })),
     }),
     {
       name: STORAGE_KEYS.player,
       storage: zustandStorage,
-      version: 4,
+      version: 5,
       // Persist data only, never actions.
       partialize: (s): PlayerData => ({
         name: s.name,
@@ -144,6 +154,7 @@ export const usePlayerStore = create<PlayerStore>()(
         mapSeen: s.mapSeen,
         playDays: s.playDays,
         streakRewardsClaimed: s.streakRewardsClaimed,
+        tutorialDone: s.tutorialDone,
       }),
       migrate: (persisted, fromVersion) => {
         let data = persisted as PlayerData;
@@ -153,6 +164,8 @@ export const usePlayerStore = create<PlayerStore>()(
         if (fromVersion < 3) data = { ...data, mapSeen: { unlockedLevel: data.unlockedLevel, stars: data.stars } };
         // v4 added the streak calendar: backfill it with the days of the current streak.
         if (fromVersion < 4) data = { ...data, playDays: streakDayKeys(data.streak), streakRewardsClaimed: [] };
+        // v5 added the guided first level: anyone who already cleared a level knows how to play.
+        if (fromVersion < 5) data = { ...data, tutorialDone: data.completedLevels.length > 0 };
         return data;
       },
     },

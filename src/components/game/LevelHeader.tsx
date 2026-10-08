@@ -1,10 +1,12 @@
 import { memo } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import type { Difficulty } from '@/types';
 import { BackIcon } from '@/components/icons';
 import { BrutalistButton } from '@/components/ui/BrutalistButton';
 import { CoinDisplay } from '@/components/ui/CoinDisplay';
-import { spacing, textStyles } from '@/theme';
+import { spacing, textStyles, themed } from '@/theme';
+import { BoardProgress } from './BoardProgress';
 import { DifficultyBadge } from './DifficultyBadge';
 import { LivesDisplay } from './LivesDisplay';
 
@@ -14,6 +16,10 @@ interface LevelHeaderProps {
   coins: number;
   lives: number;
   maxLives: number;
+  /** Arrows cleared so far, out of the board's total. */
+  cleared: number;
+  total: number;
+  reducedMotion: boolean;
   onBack: () => void;
 }
 
@@ -23,6 +29,9 @@ export const LevelHeader = memo(function LevelHeader({
   coins,
   lives,
   maxLives,
+  cleared,
+  total,
+  reducedMotion,
   onBack,
 }: LevelHeaderProps) {
   return (
@@ -37,14 +46,15 @@ export const LevelHeader = memo(function LevelHeader({
       </View>
       <View style={styles.livesRow}>
         <LivesDisplay lives={lives} maxLives={maxLives} />
+        <BoardProgress cleared={cleared} total={total} reducedMotion={reducedMotion} />
       </View>
     </View>
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { gap: spacing.md, paddingTop: spacing.sm },
   row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   center: { alignItems: 'center', gap: spacing.xs },
-  livesRow: { alignItems: 'center' },
-});
+  livesRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+}));

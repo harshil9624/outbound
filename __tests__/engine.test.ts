@@ -108,11 +108,11 @@ describe('stars + reward', () => {
     expect(calculateStars({ mistakes: 3, hintsUsed: 0 })).toBe(1);
     expect(calculateStars({ mistakes: 0, hintsUsed: 0, hammersUsed: 1 })).toBe(2);
   });
-  it('first clears pay more than replays', () => {
+  it('only first clears pay coins', () => {
     const first = calculateReward({ difficulty: 'normal', stars: 3, isFirstClear: true });
     const replay = calculateReward({ difficulty: 'normal', stars: 3, isFirstClear: false });
     expect(first.total).toBe(15 + 15 + 10);
-    expect(replay.total).toBeLessThan(first.total);
+    expect(replay.total).toBe(0);
   });
 });
 
@@ -166,8 +166,8 @@ describe('streak', () => {
 describe('streak rewards and calendar', () => {
   it('pays each reached milestone once and backfills streak days', async () => {
     const { claimableMilestones, streakDayKeys } = await import('../src/game/progression/streak');
-    expect(claimableMilestones(8, [])).toEqual([3, 7]);
-    expect(claimableMilestones(8, [3])).toEqual([7]);
+    expect(claimableMilestones(8, [])).toEqual([2, 3, 5, 7]);
+    expect(claimableMilestones(8, [2, 3])).toEqual([5, 7]);
     expect(streakDayKeys({ count: 3, best: 3, lastPlayedDay: '2026-09-01' })).toEqual(['2026-08-30', '2026-08-31', '2026-09-01']);
   });
   it('lays out a month in Sunday-first weeks', async () => {

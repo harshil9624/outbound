@@ -1,17 +1,20 @@
-import { useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Text } from '@/components/ui/Text';
 import Constants from 'expo-constants';
+import { useFocusEffect } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { playSound } from '@/audio/sounds';
-import { ANIMALS, type Animal } from '@/constants/animals';
-import { APP_NAME } from '@/constants/app';
+import { ANIMAL_COLORS, AVATARS } from '@/constants/animals';
+import { APP_DESCRIPTION, APP_DISPLAY_NAME } from '@/constants/app';
 import { MAX_NAME_LENGTH, usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { AnimalFace } from '@/components/game/AnimalFace';
-import { CoinIcon } from '@/components/icons';
-import { BrutalistButton, BrutalistCard, Screen } from '@/components/ui';
-import { arrowColors, borderWidths, colors, fontWeights, palette, spacing, textStyles } from '@/theme';
+import { CoinIcon, MoonIcon, SunIcon } from '@/components/icons';
+import { BrutalistButton, BrutalistCard, OnColor, Screen } from '@/components/ui';
+import { MAX_FONT_SCALE, arrowColors, borderWidths, colors, fonts, fontWeights, palette, setThemeMode, spacing, textStyles, type ThemeMode, useThemeMode, themed } from '@/theme';
 import { withAlpha } from '@/utils/color';
+import { vibrateBlocked } from '@/utils/haptics';
 
 type SettingKey = 'soundEnabled' | 'vibrationEnabled' | 'reducedMotion';
 
@@ -20,16 +23,6 @@ const FEEL_ROWS: { key: SettingKey; label: string; hint: string }[] = [
   { key: 'vibrationEnabled', label: 'Vibration', hint: 'Buzz on a blocked tap' },
   { key: 'reducedMotion', label: 'Reduced motion', hint: 'Shorter animations, no celebrations' },
 ];
-
-/** Avatar colours follow the arrow palette, one per animal. */
-const AVATAR_COLORS: Record<Animal, string> = {
-  cat: arrowColors.yellow,
-  bear: arrowColors.blue,
-  bunny: arrowColors.pink,
-  frog: arrowColors.green,
-  pig: arrowColors.orange,
-  panda: arrowColors.purple,
-};
 
 export default function SettingsRoute() {
   const { setSetting, ...values } = useSettingsStore(
@@ -48,6 +41,10 @@ export default function SettingsRoute() {
 
         <ProfileCard />
 
+        <Section title="Appearance">
+          <ThemePicker />
+        </Section>
+
         <Section title="Sound & feel">
           {FEEL_ROWS.map(({ key, label, hint }, i) => (
             <Row key={key} label={label} hint={hint} divider={i > 0}>
@@ -58,6 +55,8 @@ export default function SettingsRoute() {
                   // Set first: turning Sound on clicks, turning it off stays silent.
                   setSetting(key, v);
                   playSound('tap');
+                  // Switching vibration on buzzes once, so the player feels what it does.
+                  if (key === 'vibrationEnabled' && v) vibrateBlocked(true);
                 }}
               />
             </Row>
@@ -69,7 +68,7 @@ export default function SettingsRoute() {
         <ResetProgress />
 
         <Section title="About">
-          <Row label={APP_NAME} hint="A strategic arrow puzzle">
+          <Row label={APP_DISPLAY_NAME} hint={APP_DESCRIPTION}>
             <Text style={styles.version}>v{Constants.expoConfig?.version ?? '—'}</Text>
           </Row>
         </Section>
@@ -81,7 +80,7 @@ export default function SettingsRoute() {
 }
 
 /** Name (editable in place) and avatar animal. */
-function ProfileCard() {
+const ProfileCard = memo(function ProfileCard() {
   const { name, avatar, setName, setAvatar } = usePlayerStore(
     useShallow((s) => ({ name: s.name, avatar: s.avatar, setName: s.setName, setAvatar: s.setAvatar })),
   );
@@ -90,17 +89,30 @@ function ProfileCard() {
   const valid = draft.trim().length > 0;
 
   const save = () => {
-    if (!valid) return;
+    if (!valid) {
+      playSound('blocked');
+      return;
+    }
     setName(draft);
     setEditing(false);
     playSound('tap');
   };
 
+  // Leaving the tab drops an unsaved edit, so it isn't still open (keyboard gone) on return.
+  useFocusEffect(
+    useCallback(
+      () => () => {
+        setEditing(false);
+      },
+      [],
+    ),
+  );
+
   return (
     <BrutalistCard color="primary" shadow="lg" contentStyle={styles.profile}>
       <View style={styles.profileTop}>
         <View style={styles.bigAvatar}>
-          <AnimalFace animal={avatar} color={AVATAR_COLORS[avatar]} dir={{ x: 1, y: 0 }} mood="happy" size={84} />
+          <AnimalFace animal={avatar} color={arrowColors[ANIMAL_COLORS[avatar]]} dir={{ x: 1, y: 0 }} mood="happy" size={84} />
         </View>
         <View style={styles.profileName}>
           <Text style={styles.eyebrow}>PLAYER NAME</Text>
@@ -108,9 +120,17 @@ function ProfileCard() {
             <View style={styles.editRow}>
               <TextInput
                 nativeID="player-name"
+                maxFontSizeMultiplier={MAX_FONT_SCALE}
                 value={draft}
-                onChangeText={setDraft}
+                // Leading spaces would use up the length limit and then be trimmed away on save.
+                onChangeText={(t) => setDraft(t.replace(/^s+/, ''))}
                 maxLength={MAX_NAME_LENGTH}
+                // A name, not a word: the keyboard must not "correct" it, and it starts with a capital.
+                autoCorrect={false}
+                spellCheck={false}
+                autoCapitalize="words"
+                autoComplete="off"
+                importantForAutofill="no"
                 autoFocus
                 returnKeyType="done"
                 onSubmitEditing={save}
@@ -129,8 +149,8 @@ function ProfileCard() {
       </View>
       {editing ? (
         <View style={styles.editActions}>
-          <Text style={styles.counter}>
-            {draft.trim().length}/{MAX_NAME_LENGTH}
+          <Text style={[styles.counter, !valid && styles.counterError]}>
+            {valid ? `${draft.length}/${MAX_NAME_LENGTH}` : 'Type a name'}
           </Text>
           <BrutalistButton
             label="Cancel"
@@ -157,7 +177,7 @@ function ProfileCard() {
       )}
       <Text style={styles.eyebrow}>CHOOSE YOUR ANIMAL</Text>
       <View style={styles.avatars}>
-        {ANIMALS.map((a) => {
+        {AVATARS.map((a) => {
           const active = a === avatar;
           return (
             <Pressable
@@ -171,16 +191,16 @@ function ProfileCard() {
               accessibilityLabel={a}
               style={[styles.avatarOption, active && styles.avatarActive]}
             >
-              <AnimalFace animal={a} color={AVATAR_COLORS[a]} dir={{ x: 0, y: -1 }} mood="happy" size={42} />
+              <AnimalFace animal={a} color={arrowColors[ANIMAL_COLORS[a]]} dir={{ x: 0, y: -1 }} mood="happy" size={42} />
             </Pressable>
           );
         })}
       </View>
     </BrutalistCard>
   );
-}
+});
 
-function HowToPlay() {
+const HowToPlay = memo(function HowToPlay() {
   const [open, setOpen] = useState(false);
   return (
     <Section title="How to play" action={<Text style={styles.link}>{open ? 'Hide' : 'Show'}</Text>} onPressTitle={() => setOpen((o) => !o)}>
@@ -193,13 +213,15 @@ function HowToPlay() {
       ) : null}
     </Section>
   );
-}
+});
 
 function Rule({ n, text }: { n: number; text: string }) {
   return (
     <View style={styles.rule}>
       <View style={styles.ruleNum}>
-        <Text style={styles.ruleNumText}>{n}</Text>
+        <OnColor>
+          <Text style={styles.ruleNumText}>{n}</Text>
+        </OnColor>
       </View>
       <Text style={styles.ruleText}>{text}</Text>
     </View>
@@ -207,9 +229,16 @@ function Rule({ n, text }: { n: number; text: string }) {
 }
 
 /** Two-step reset so it can't happen by accident. */
-function ResetProgress() {
+const ResetProgress = memo(function ResetProgress() {
   const reset = usePlayerStore((s) => s.resetProgress);
   const [confirming, setConfirming] = useState(false);
+  // A short "done" note after resetting, so the tap visibly did something.
+  const [justReset, setJustReset] = useState(false);
+  useEffect(() => {
+    if (!justReset) return;
+    const t = setTimeout(() => setJustReset(false), 4000);
+    return () => clearTimeout(t);
+  }, [justReset]);
   return (
     <Section title="Progress">
       {confirming ? (
@@ -224,6 +253,7 @@ function ResetProgress() {
               onPress={() => {
                 reset();
                 setConfirming(false);
+                setJustReset(true);
               }}
               color="danger"
               size="sm"
@@ -231,16 +261,16 @@ function ResetProgress() {
           </View>
         </View>
       ) : (
-        <Row label="Reset progress" hint="Start the journey again from level 1">
+        <Row label="Reset progress" hint={justReset ? 'Done! You’re back at level 1.' : 'Start the journey again from level 1'}>
           <BrutalistButton label="Reset" onPress={() => setConfirming(true)} color="surface" size="sm" />
         </Row>
       )}
     </Section>
   );
-}
+});
 
 /** Development builds only: top up coins to test boosts. Never shipped in release builds. */
-function DevCoins() {
+const DevCoins = memo(function DevCoins() {
   const coins = usePlayerStore((s) => s.coins);
   const add = (amount: number) => {
     usePlayerStore.getState().addCoins(amount);
@@ -260,9 +290,17 @@ function DevCoins() {
         <BrutalistButton label="+100" onPress={() => add(100)} color="primary" size="sm" sound={null} />
         <BrutalistButton label="+1000" onPress={() => add(1000)} color="primary" size="sm" sound={null} />
       </View>
+      {/* Level 1's guided hand shows until it's finished once; this brings it back for testing. */}
+      <BrutalistButton
+        label="Show tutorial again"
+        onPress={() => usePlayerStore.setState({ tutorialDone: false })}
+        color="surface"
+        size="sm"
+        style={styles.devTutorial}
+      />
     </BrutalistCard>
   );
-}
+});
 
 function Section({
   title,
@@ -298,6 +336,36 @@ function Row({ label, hint, divider, children }: { label: string; hint: string; 
   );
 }
 
+const THEME_OPTIONS: { mode: ThemeMode; label: string; Icon: typeof SunIcon }[] = [
+  { mode: 'light', label: 'Light mode', Icon: SunIcon },
+  { mode: 'dark', label: 'Dark mode', Icon: MoonIcon },
+];
+
+/** Sun and moon tiles with their name underneath. Tapping one switches the theme at once. */
+const ThemePicker = memo(function ThemePicker() {
+  const themeMode = useThemeMode();
+  return (
+    <View style={styles.themes} accessibilityRole="radiogroup">
+      {THEME_OPTIONS.map(({ mode, label, Icon }) => {
+        const active = mode === themeMode;
+        return (
+          <View key={mode} style={styles.themeOption}>
+            <BrutalistButton
+              icon={<Icon size={34} />}
+              onPress={() => setThemeMode(mode)}
+              color={active ? 'primary' : 'surface'}
+              size="lg"
+              sound={active ? null : 'tap'}
+              accessibilityLabel={active ? `${label}, on` : label}
+            />
+            <Text style={[styles.themeLabel, !active && styles.themeLabelIdle]}>{label}</Text>
+          </View>
+        );
+      })}
+    </View>
+  );
+});
+
 interface ToggleProps {
   label: string;
   value: boolean;
@@ -322,7 +390,7 @@ function Toggle({ label, value, onChange }: ToggleProps) {
 const TRACK_W = 58;
 const TRACK_H = 32;
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   screen: { paddingBottom: 0 },
   content: { gap: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xxl },
   eyebrow: { ...textStyles.caption, color: colors.ink, letterSpacing: 1.2 },
@@ -345,7 +413,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 22,
-    fontWeight: fontWeights.heavy,
+    fontFamily: fonts.black,
     color: colors.ink,
     backgroundColor: colors.surface,
     borderWidth: borderWidths.regular,
@@ -354,7 +422,8 @@ const styles = StyleSheet.create({
     paddingVertical: spacing.xs,
   },
   editActions: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.md },
-  counter: { ...textStyles.caption, color: colors.ink, marginRight: 'auto' },
+  counter: { ...textStyles.caption, color: colors.ink, marginRight: 'auto', flexShrink: 1 },
+  counterError: { color: colors.danger, fontWeight: fontWeights.heavy },
   editButton: { alignSelf: 'flex-start' },
   avatars: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   avatarOption: {
@@ -390,7 +459,8 @@ const styles = StyleSheet.create({
   ruleNumText: { fontWeight: fontWeights.heavy, color: colors.ink },
   ruleText: { ...textStyles.body, flex: 1 },
   confirm: { gap: spacing.md, paddingVertical: spacing.sm },
-  confirmActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.md },
+  // Wraps onto two lines when both buttons don't fit (small phone, big text).
+  confirmActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.md },
   track: {
     width: TRACK_W,
     height: TRACK_H,
@@ -409,8 +479,13 @@ const styles = StyleSheet.create({
     borderWidth: borderWidths.thin,
     borderColor: colors.ink,
   },
+  themes: { flexDirection: 'row', justifyContent: 'space-evenly', paddingVertical: spacing.sm },
+  themeOption: { alignItems: 'center', gap: spacing.sm },
+  themeLabel: { ...textStyles.label },
+  themeLabelIdle: { color: colors.inkMuted, fontWeight: fontWeights.bold },
   devCard: { gap: spacing.sm },
   devHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   devBalance: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   devButtons: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
-});
+  devTutorial: { alignSelf: 'flex-start' },
+}));

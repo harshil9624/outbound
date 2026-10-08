@@ -19,14 +19,12 @@ export interface RewardTable {
   base: Record<Difficulty, number>;
   perStar: number;
   firstClearBonus: number;
-  replayMultiplier: number;
 }
 
 export const REWARD_TABLE: RewardTable = {
   base: { easy: 10, normal: 15, hard: 25 },
   perStar: 5,
   firstClearBonus: 10,
-  replayMultiplier: 0.2,
 };
 
 /** Coin prices of the in-level boosts. */

@@ -3,7 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { CHAPTERS } from '@/game/journey/chapters';
 import { layoutChapter } from '@/game/journey/layout';
-import { applyProgress, chapterOfLevel, chapterStars, currentLevelId } from '@/game/journey/progress';
+import { applyProgress, chapterOfLevel, currentLevelId } from '@/game/journey/progress';
 import type { ChapterDef, ChapterLayout, MapNode, PlayerProgress } from '@/game/journey/types';
 import { levelProvider } from '@/game/levels/levelProvider';
 import { usePlayerStore } from '@/store/playerStore';
@@ -76,7 +76,8 @@ export function useJourney() {
         moreSoon: !hasMaster,
         completed,
         available: main.length,
-        stars: chapterStars(layout.chapter, progress),
+        // Only levels that exist: saved stars for a removed or renumbered level don't count.
+        stars: main.reduce((sum, n) => sum + n.stars, 0),
       });
       if (!hasMaster) {
         // Chapter still being made: the journey ends here for now, with the next chapter teased.
@@ -121,10 +122,17 @@ export function useJourney() {
         toId: moved ? currentId : null,
         enteredChapter: moved && !!currentChapter && fromChapter !== currentChapter,
       });
-      seenTimer.current = setTimeout(markMapSeen, SEEN_AFTER_MS);
+      // Once shown, the celebration is over for this visit. Clearing it matters: the map is a
+      // virtualized list, so a chapter scrolled out and back remounts and would replay every
+      // star drop, route fill and unlock pop if the celebration were still set.
+      seenTimer.current = setTimeout(() => {
+        markMapSeen();
+        setCelebration(null);
+      }, SEEN_AFTER_MS);
       return () => {
         if (seenTimer.current) clearTimeout(seenTimer.current);
         markMapSeen();
+        setCelebration(null);
       };
     }, []),
   );

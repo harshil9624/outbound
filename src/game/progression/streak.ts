@@ -4,22 +4,81 @@ export interface StreakState {
   count: number;
   best: number;
   lastPlayedDay: string | null;
+  /**
+   * Days a free freeze covered: a single missed day doesn't break the streak, once a week.
+   * Optional so streaks saved before freezes existed still load.
+   */
+  frozenDays?: string[];
+}
+
+/** One free freeze per this many days. */
+export const FREEZE_EVERY_DAYS = 7;
+
+/** A freeze can cover `day` if none was used in the week before it. */
+function freezeCovers(streak: StreakState, day: string): boolean {
+  return !(streak.frozenDays ?? []).some((f) => {
+    const gap = daysBetween(f, day);
+    return gap >= 0 && gap < FREEZE_EVERY_DAYS;
+  });
+}
+
+/** Whether a freeze is ready to save the next missed day (shown on the Streak screen). */
+export function freezeReady(streak: StreakState, today: string): boolean {
+  return freezeCovers(streak, today);
 }
 
 export const INITIAL_STREAK: StreakState = { count: 0, best: 0, lastPlayedDay: null };
 
-/** Call when the player completes a level on `today`. */
+/** The one missed day a freeze would cover, if the streak is exactly one day behind. */
+function missedDay(streak: StreakState, today: string): string | null {
+  if (!streak.lastPlayedDay || daysBetween(streak.lastPlayedDay, today) !== 2) return null;
+  const missed = addDays(streak.lastPlayedDay, 1);
+  return freezeCovers(streak, missed) ? missed : null;
+}
+
+/**
+ * Call when the player completes a level on `today`. Playing the next day adds one; missing a
+ * single day is covered by the weekly freeze (the streak carries on); otherwise it starts over.
+ */
 export function registerPlayDay(streak: StreakState, today: string): StreakState {
   if (streak.lastPlayedDay === today) return streak;
   const gap = streak.lastPlayedDay ? daysBetween(streak.lastPlayedDay, today) : Infinity;
-  const count = gap === 1 ? streak.count + 1 : 1;
-  return { count, best: Math.max(streak.best, count), lastPlayedDay: today };
+  const frozen = missedDay(streak, today);
+  const keeps = gap === 1 || frozen !== null;
+  const count = keeps ? streak.count + 1 : 1;
+  // Only recent freezes matter (they block the next one for a week).
+  const frozenDays = keeps ? [...(streak.frozenDays ?? []), ...(frozen ? [frozen] : [])].filter((f) => daysBetween(f, today) < FREEZE_EVERY_DAYS * 2) : [];
+  return { count, best: Math.max(streak.best, count), lastPlayedDay: today, frozenDays };
 }
 
-/** The streak to display: it silently lapses if a day was missed. */
+/** The streak to display: alive if played today or yesterday, or one missed day a freeze covers. */
 export function getActiveStreak(streak: StreakState, today: string): number {
   if (!streak.lastPlayedDay) return 0;
-  return daysBetween(streak.lastPlayedDay, today) <= 1 ? streak.count : 0;
+  return daysBetween(streak.lastPlayedDay, today) <= 1 || missedDay(streak, today) !== null ? streak.count : 0;
+}
+
+export type StreakStatus =
+  /** Cleared a level today. */
+  | 'done'
+  /** Alive; play today to grow it. */
+  | 'waiting'
+  /** Yesterday was missed and a freeze is holding it: play today to keep it. */
+  | 'frozen'
+  /** No streak right now (never played, or it lapsed). */
+  | 'none';
+
+export function streakStatus(streak: StreakState, today: string): StreakStatus {
+  if (!streak.lastPlayedDay) return 'none';
+  const gap = daysBetween(streak.lastPlayedDay, today);
+  if (gap <= 0) return 'done';
+  if (gap === 1) return 'waiting';
+  return missedDay(streak, today) !== null ? 'frozen' : 'none';
+}
+
+/** The days a freeze is covering, including one holding the streak right now. */
+export function frozenDayKeys(streak: StreakState, today: string): string[] {
+  const holding = missedDay(streak, today);
+  return [...(streak.frozenDays ?? []), ...(holding ? [holding] : [])];
 }
 
 export interface StreakDay {
@@ -37,15 +96,27 @@ export function getStreakDays(streak: StreakState, today: string, windowDays = 7
   });
 }
 
-/** Rewards for reaching a streak length (paid once each, based on the best streak). */
+/**
+ * Treasure chests for reaching a streak length (paid once each, based on the best streak). Close
+ * together so a child always has one within reach; a bigger one at a week and at a month.
+ */
 export const STREAK_MILESTONES: readonly { days: number; coins: number }[] = [
-  { days: 3, coins: 25 },
-  { days: 7, coins: 60 },
-  { days: 14, coins: 120 },
+  { days: 2, coins: 10 },
+  { days: 3, coins: 15 },
+  { days: 5, coins: 25 },
+  { days: 7, coins: 50 },
+  { days: 10, coins: 60 },
+  { days: 14, coins: 100 },
+  { days: 21, coins: 150 },
   { days: 30, coins: 250 },
-  { days: 60, coins: 500 },
-  { days: 100, coins: 1000 },
 ];
+
+/** The week (Sunday first) that contains `today`, as day keys. */
+export function weekOf(today: string): string[] {
+  const [y, m, d] = today.split('-').map(Number);
+  const weekday = new Date(y, m - 1, d).getDay();
+  return Array.from({ length: 7 }, (_, i) => addDays(today, i - weekday));
+}
 
 /** Milestones the player has reached but not yet collected. */
 export function claimableMilestones(best: number, claimed: readonly number[]): number[] {

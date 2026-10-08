@@ -75,4 +75,6 @@ export interface LevelResult {
   moves: number;
   mistakes: number;
   hintsUsed: number;
+  /** Hammer smashes: they cost a star like hints, so the win screen shows them too. */
+  hammersUsed: number;
 }

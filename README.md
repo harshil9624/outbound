@@ -1,4 +1,4 @@
-# Outbound
+# ArrowZing
 
 An Android-first arrow puzzle game. Every arrow is one continuous path with bends and a single head. Tap an arrow and it slides off the board, but only if the lane in front of its head is clear. Clear the board without running out of hearts.
 
@@ -6,7 +6,7 @@ An Android-first arrow puzzle game. Every arrow is one continuous path with bend
 
 ## Overview
 
-Outbound is a casual, offline mobile puzzle game built with Expo and React Native, aimed at players who like short, thoughtful puzzle sessions.
+ArrowZing is a casual, offline mobile puzzle game built with Expo and React Native, aimed at players who like short, thoughtful puzzle sessions.
 
 - **What it is:** a tap-away puzzle. Each level is a grid of colourful, animal-headed arrows that block each other. The player has to work out the order in which arrows can leave.
 - **Main purpose:** a readable puzzle with real decisions. Arrows are easy to read (body, head and direction are always clear), but choosing the right move takes thought.
@@ -174,7 +174,7 @@ cd outbound
 bun i
 ```
 
-Outbound uses native modules (MMKV), so it **cannot run in Expo Go**. You need the development build described below.
+ArrowZing uses native modules (MMKV), so it **cannot run in Expo Go**. You need the development build described below.
 
 ## Running the App (Development)
 
@@ -253,6 +253,20 @@ Current Android identity (from `app.json` and the generated Gradle config):
 | URL scheme | `outbound` |
 
 `com.yourstudio.outbound` is a placeholder. Choose the final package name before the first Play Store upload, because it cannot be changed afterwards.
+
+### Branding
+
+The game was renamed from Outbound to **ArrowZing**. The repo folder, package ID, URL scheme and the saved-data keys (`outbound.*`) keep the old name on purpose: renaming the saved-data keys would wipe every player's progress.
+
+| Where | Text |
+| --- | --- |
+| Splash and Home logo | ARROWZING |
+| Name under the app icon | ArrowZing |
+| Google Play title (30 characters max) | Arrow Puzzle: ArrowZing |
+| Short description | Tap cute arrows, clear tricky paths, and solve fun brain puzzles! |
+| Tagline (splash) | TAP. THINK. ESCAPE. |
+
+The in-app texts live in [src/constants/app.ts](src/constants/app.ts). Check the name on Google Play and in trademark databases before publishing.
 
 ## Scripts
 

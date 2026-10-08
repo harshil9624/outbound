@@ -11,6 +11,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import { HammerIcon } from '@/components/icons';
 import { RAISED, hammerSize, hammerTransform } from './HammerStrike';
+import { themed } from '@/theme';
 
 const ENTER_MS = 480;
 const BOB_MS = 520;
@@ -71,6 +72,6 @@ export const HammerHover = memo(function HammerHover({ x, y, fromX, fromY, cellS
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   hammer: { position: 'absolute', left: 0, top: 0 },
-});
+}));

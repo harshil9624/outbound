@@ -1,7 +1,7 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import Svg, { Polyline } from 'react-native-svg';
-import { borderWidths, colors, palette } from '@/theme';
+import { borderWidths, colors, palette, themed } from '@/theme';
 
 /** Static geometric confetti. Never intercepts touches. */
 export const Decorations = memo(function Decorations() {
@@ -25,10 +25,10 @@ export const Decorations = memo(function Decorations() {
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   shape: { position: 'absolute', borderWidth: borderWidths.thick, borderColor: colors.ink },
   circle: { top: 92, right: -26, width: 92, height: 92, borderRadius: 46, backgroundColor: palette.green },
   square: { top: 300, left: -22, width: 58, height: 58, backgroundColor: palette.purple, transform: [{ rotate: '18deg' }] },
   bar: { bottom: 150, right: 18, width: 70, height: 18, backgroundColor: palette.orange, transform: [{ rotate: '-12deg' }] },
   zigzag: { position: 'absolute', bottom: 70, left: 20 },
-});
+}));

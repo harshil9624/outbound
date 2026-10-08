@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { StyleSheet, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView, type Edge } from 'react-native-safe-area-context';
-import { colors, spacing } from '@/theme';
+import { colors, spacing, themed } from '@/theme';
 
 interface ScreenProps {
   children?: ReactNode;
@@ -19,11 +19,11 @@ export function Screen({ children, style, edges }: ScreenProps) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: colors.background,
     paddingHorizontal: spacing.lg,
     paddingBottom: spacing.md,
   },
-});
+}));

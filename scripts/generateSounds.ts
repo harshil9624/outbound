@@ -4,6 +4,15 @@
  */
 const RATE = 22050;
 
+/**
+ * Every effect is padded with trailing silence to at least this long. Android's player stops its
+ * audio track as soon as the clip's last sample is written; for a clip shorter than the track's
+ * buffer (250–750 ms depending on the phone) that stop came before the output had started, and
+ * some phones then played nothing at all. The audible part still starts at once; the silence only
+ * keeps the track running long enough to be heard.
+ */
+const MIN_MS = 800;
+
 type Wave = 'sine' | 'square' | 'triangle';
 
 interface Note {
@@ -39,6 +48,7 @@ function render(notes: Note[]): Float32Array {
       out.push(osc(n.wave ?? 'sine', phase) * env * (n.gain ?? 0.6));
     }
   }
+  while (out.length < Math.round((MIN_MS * RATE) / 1000)) out.push(0);
   return Float32Array.from(out);
 }
 

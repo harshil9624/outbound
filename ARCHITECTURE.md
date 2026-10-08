@@ -1,4 +1,4 @@
-# Outbound — Sprint 1 Architecture
+# ArrowZing — Sprint 1 Architecture
 
 An Android-first tap-away arrow puzzle. Every arrow is one continuous path with bends and a single head; tapping it slides it out if the lane in front of the head is clear.
 
@@ -61,7 +61,6 @@ On SDK 53 or older, Reanimated is v3 and `react-native-worklets` is not needed; 
 | Game engines | The puzzle is discrete-state logic in about 300 lines of pure TypeScript. |
 | Jest / ts-node / tsx | Bun runs TypeScript and tests natively, and the engine has no React Native imports. |
 | expo-haptics | RN's built-in `Vibration` covers blocked-tap feedback. |
-| expo-font / custom fonts | The system font at weight 900 reads chunky and costs nothing to load. Add a display face later in `theme/typography.ts` only. |
 | Sample-based audio | Effects play through `expo-audio` (`src/audio/sounds.ts`), gated by `soundEnabled`. The WAVs in `assets/sounds/` are synthesized by `bun run generate-sounds`, so there are no sample files to license. The config plugin has microphone/RECORD_AUDIO turned off. |
 
 ## 2. Folder structure
@@ -213,13 +212,13 @@ Both thresholds are in `constants/board.ts`.
 
 ## 9. Design system
 
-- **Colors:** the brief's palette, plus semantic roles (`primary`, `accent`, `danger`…) and an `arrowColors` token map.
-- **Typography:** heavy system type with a fixed scale (`textStyles`).
+- **Colors:** the brief's palette, plus semantic roles (`primary`, `accent`, `danger`…) and an `arrowColors` token map. Light and dark themes swap the semantic roles in place (`theme/themeMode.ts`); colour faces keep dark text through `OnColor`.
+- **Typography:** Lilita One for titles, buttons and big numbers, Nunito (600–900) for everything else, loaded in the root layout. The `Text` wrapper in `components/ui/Text.tsx` maps `fontWeight` to the matching font file, since Android picks custom faces by family name.
 - **Spacing:** a 4-point scale.
 - **Borders:** 2, 3 and 4 px, with mostly square corners.
 - **Hard shadows:** Android `elevation` can only blur, so `HardShadow` draws a solid black block offset 3, 5 or 7 px behind the face. Pressed buttons translate onto their shadow.
 
-Every component uses `StyleSheet.create`. The one inline style is the board's computed pixel size.
+Every component wraps its styles as `themed(() => StyleSheet.create(...))` so they rebuild on a theme switch, and imports `Text` from `@/components/ui/Text`. The one inline style is the board's computed pixel size.
 
 ## 10. Levels
 
@@ -263,7 +262,7 @@ Tap on board
 
 ## Journey map
 
-The level map (`/journey`) draws the game's progress as one long Outbound arrow climbing through chapters.
+The level map (`/journey`) draws the game's progress as one long arrow climbing through chapters.
 
 - **Data-driven.** `game/journey/chapters.ts` is the only authored part: each chapter lists its levels, colour, mascot and route style. `layoutChapter` turns that into grid positions and an orthogonal route (pure, deterministic, tested). Levels that don't exist yet aren't drawn, so chapters can be authored ahead of content.
 - **Unlocking follows the journey order** (`nextMainLevel`), not `levelId + 1`. Bonus levels sit on a side spur, unlock by chapter stars, and never advance the main route.
