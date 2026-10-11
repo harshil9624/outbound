@@ -159,7 +159,8 @@ export const usePlayerStore = create<PlayerStore>()(
       migrate: (persisted, fromVersion) => {
         let data = persisted as PlayerData;
         // v2 introduced coin-priced boosts: existing players get the same starter purse as new ones.
-        if (fromVersion < 2) data = { ...data, coins: data.coins + STARTING_COINS };
+        // (The starter purse was 100 then; later new players start with STARTING_COINS.)
+        if (fromVersion < 2) data = { ...data, coins: data.coins + 100 };
         // v3 added the Journey map: start it at the player's real progress, with nothing to replay.
         if (fromVersion < 3) data = { ...data, mapSeen: { unlockedLevel: data.unlockedLevel, stars: data.stars } };
         // v4 added the streak calendar: backfill it with the days of the current streak.

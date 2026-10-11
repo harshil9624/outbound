@@ -29,6 +29,8 @@ export interface GenerationSpec {
   shapes: Partial<Record<ShapeFamily, number>>;
   /** Target score (levelMetrics 0–100). */
   targetScore: number;
+  /** Lowest acceptable score: keeps the journey from getting easier than the level before. */
+  minScore?: number;
   /** Minimum mean bends per arrow: shapes, not length, carry the chapter (Bible §4). */
   minMeanBends: number;
   difficulty: Difficulty;
@@ -37,6 +39,8 @@ export interface GenerationSpec {
   scoreWeight?: number;
   /** Alternative random stream for the same id (retries). Default 0. */
   seed?: number;
+  /** Longest straight run in any arrow (cells). Short runs pack more arrows into a board. Default: board size. */
+  maxSegment?: number;
 }
 
 export interface GeneratedLevel {
@@ -103,12 +107,12 @@ function plan(r: Rand, family: ShapeFamily, maxSeg: number): { turns: ('L' | 'R'
 }
 
 /** Grows one arrow as a walk from a free cell. Returns its cells (tail → head) and direction, or null. */
-function growArrow(r: Rand, w: number, h: number, taken: Set<string>, family: ShapeFamily): { cells: Point[]; dir: Direction } | null {
+function growArrow(r: Rand, w: number, h: number, taken: Set<string>, family: ShapeFamily, maxSegment?: number): { cells: Point[]; dir: Direction } | null {
   const free: Point[] = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!taken.has(`${x},${y}`)) free.push({ x, y });
   if (free.length < 2) return null;
   const start = pick(r, free);
-  const { turns, segs } = plan(r, family, Math.max(w, h) - 1);
+  const { turns, segs } = plan(r, family, Math.min(maxSegment ?? Infinity, Math.max(w, h) - 1));
   let dir = pick(r, DIRS);
   const cells: Point[] = [start];
   const own = new Set([cellKey(start)]);
@@ -189,6 +193,91 @@ function makeSolvable(r: Rand, arrows: Placed[], w: number, h: number): Placed[]
   }
 }
 
+/** True when greedy removal clears the board (removing an arrow never blocks another). */
+function isSolvable(arrows: Placed[], w: number, h: number): boolean {
+  const deps = blockersOf(arrows, w, h);
+  const gone = new Set<number>();
+  let progressed = true;
+  while (progressed) {
+    progressed = false;
+    deps.forEach((d, i) => {
+      if (!gone.has(i) && d.every((b) => gone.has(b))) {
+        gone.add(i);
+        progressed = true;
+      }
+    });
+  }
+  return gone.size === arrows.length;
+}
+
+const NEIGHBOURS: [number, number, Direction][] = [
+  [1, 0, 'right'],
+  [-1, 0, 'left'],
+  [0, 1, 'down'],
+  [0, -1, 'up'],
+];
+
+/** An arrow's exit lane must not run back over its own body. */
+function laneClearOfSelf(a: Placed, w: number, h: number): boolean {
+  const own = new Set(a.cells.map(cellKey));
+  const v = DIRECTION_VECTORS[a.dir];
+  const head = a.cells[a.cells.length - 1];
+  for (let x = head.x + v.x, y = head.y + v.y; x >= 0 && y >= 0 && x < w && y < h; x += v.x, y += v.y) {
+    if (own.has(`${x},${y}`)) return false;
+  }
+  return true;
+}
+
+/**
+ * Fills the empty cells the random walks and the solvability pass left behind, keeping the level
+ * solvable at every step:
+ *  1. two free neighbouring cells become a new short arrow (either way round), while under maxArrows;
+ *  2. a free cell next to an arrow's tail lengthens that arrow (its head and exit lane don't change).
+ * A cell stays empty only if every way of using it would make the level unsolvable.
+ */
+function fillGaps(r: Rand, arrows: Placed[], w: number, h: number, maxArrows: number): Placed[] {
+  const list = arrows.map((a) => ({ cells: [...a.cells], dir: a.dir }));
+  const taken = new Set<string>();
+  list.forEach((a) => a.cells.forEach((c) => taken.add(cellKey(c))));
+  const free = () => {
+    const out: Point[] = [];
+    for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (!taken.has(`${x},${y}`)) out.push({ x, y });
+    return out;
+  };
+  // 1. New two-cell arrows.
+  for (const c of free().sort(() => r() - 0.5)) {
+    if (list.length >= maxArrows) break;
+    if (taken.has(cellKey(c))) continue;
+    for (const [dx, dy, dir] of [...NEIGHBOURS].sort(() => r() - 0.5)) {
+      const n = { x: c.x + dx, y: c.y + dy };
+      if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h || taken.has(cellKey(n))) continue;
+      const cand: Placed = { cells: [c, n], dir };
+      list.push(cand);
+      if (isSolvable(list, w, h)) {
+        taken.add(cellKey(c));
+        taken.add(cellKey(n));
+        break;
+      }
+      list.pop();
+    }
+  }
+  // 2. Lengthen a neighbouring arrow's tail into each remaining free cell.
+  for (const c of free()) {
+    for (const [dx, dy] of NEIGHBOURS) {
+      const owner = list.find((a) => a.cells[0].x === c.x + dx && a.cells[0].y === c.y + dy && a.cells.length < 8);
+      if (!owner) continue;
+      const before = owner.cells;
+      owner.cells = [c, ...before];
+      if (laneClearOfSelf(owner, w, h) && isSolvable(list, w, h)) {
+        taken.add(cellKey(c));
+        break;
+      }
+      owner.cells = before;
+    }
+  }
+  return list;
+}
+
 /** Greedy colouring: touching arrows never share a colour. */
 function colour(r: Rand, arrows: Placed[]): ArrowColor[] {
   const owner = new Map<string, number>();
@@ -214,7 +303,7 @@ function attempt(spec: GenerationSpec, r: Rand): Level | null {
   const placed: Placed[] = [];
   const goal = Math.round(w * h * spec.density);
   const place = (family: ShapeFamily) => {
-    const a = growArrow(r, w, h, taken, family);
+    const a = growArrow(r, w, h, taken, family, spec.maxSegment);
     if (!a) return false;
     placed.push(a);
     a.cells.forEach((c) => taken.add(cellKey(c)));
@@ -223,14 +312,16 @@ function attempt(spec: GenerationSpec, r: Rand): Level | null {
   // Phase 1: the chapter's shaped arrows first, while there is room for them.
   const shaped = Object.fromEntries(Object.entries(spec.shapes).filter(([f]) => f !== 'straight'));
   const shapedTarget = Math.round(spec.arrows[1] * 0.55);
-  for (let tries = 0; tries < 600 && placed.length < shapedTarget && Object.keys(shaped).length; tries++) {
+  const budget = Math.max(800, w * h * 8);
+  for (let tries = 0; tries < budget && placed.length < shapedTarget && Object.keys(shaped).length; tries++) {
     place(pickFamily(r, shaped));
   }
   // Phase 2: fill the gaps with any family the chapter allows.
-  for (let tries = 0; tries < 800 && placed.length < spec.arrows[1] && taken.size < goal; tries++) {
+  for (let tries = 0; tries < budget && placed.length < spec.arrows[1] && taken.size < goal; tries++) {
     place(pickFamily(r, spec.shapes));
   }
-  const solvable = makeSolvable(r, placed, w, h);
+  // The solvability pass removes arrows caught in waiting loops; fill what they and the walks left empty.
+  const solvable = fillGaps(r, makeSolvable(r, placed, w, h), w, h, spec.arrows[1]);
   if (solvable.length < spec.arrows[0]) return null;
   const colors = colour(r, solvable);
   const arrows: ArrowPath[] = solvable.map((a, i) => ({
@@ -250,7 +341,8 @@ export function generateLevel(spec: GenerationSpec): GeneratedLevel | null {
   const cost = (m: LevelMetrics) =>
     (spec.scoreWeight ?? 1) * Math.abs(m.score - spec.targetScore) +
     12 * Math.max(0, spec.minMeanBends - m.meanBends) +
-    6 * Math.abs(m.arrowCount - spec.targetArrows);
+    6 * Math.abs(m.arrowCount - spec.targetArrows) +
+    40 * Math.max(0, (spec.minScore ?? 0) - m.score);
   for (let i = 0; i < (spec.attempts ?? 40); i++) {
     const level = attempt(spec, r);
     if (!level) continue;

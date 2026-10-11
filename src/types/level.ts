@@ -3,7 +3,8 @@ import type { Direction, Point } from './geometry';
 /** Theme token, not a hex value — levels stay valid when the palette changes. */
 export type ArrowColor = 'yellow' | 'blue' | 'pink' | 'green' | 'orange' | 'purple' | 'red';
 
-export type Difficulty = 'easy' | 'normal' | 'hard';
+/** Five tiers, by arrow count (see src/game/levels/progression.ts). 'normal' is shown as "Medium". */
+export type Difficulty = 'simple' | 'easy' | 'normal' | 'hard' | 'extra-hard';
 
 /**
  * Reserved for future mechanics (locked arrows, bombs, one-way gates…).

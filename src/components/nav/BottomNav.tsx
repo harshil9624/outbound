@@ -56,7 +56,10 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
               >
                 {({ pressed }) => (
                   <>
+                    {/* Never flattened: unfocused it has no fill, so it would be flattened, then
+                        rebuilt on press (see BrutalistButton). */}
                     <View
+                      collapsable={false}
                       style={[
                         styles.bubble,
                         focused ? [styles.bubbleActive, surfaceStyles[spec.color]] : null,

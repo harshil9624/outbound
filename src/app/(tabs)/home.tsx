@@ -84,12 +84,8 @@ export default function HomeRoute() {
       <Decorations />
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.topBar}>
-          <Pressable
-            style={styles.profile}
-            onPress={() => router.navigate('/settings')}
-            accessibilityRole="button"
-            accessibilityLabel={`Profile: ${p.name}. Edit in settings`}
-          >
+          {/* Greeting only: the name and avatar are edited in Settings (bottom tab), not from here. */}
+          <View style={styles.profile} accessible accessibilityLabel={`${greeting(today.hour)}, ${p.name}`}>
             <View style={styles.avatar}>
               <AnimalFace animal={p.avatar} color={arrowColors[ANIMAL_COLORS[p.avatar]]} dir={{ x: 1, y: 0 }} mood="happy" size={54} />
             </View>
@@ -99,7 +95,7 @@ export default function HomeRoute() {
                 {p.name}
               </Text>
             </View>
-          </Pressable>
+          </View>
           <CoinDisplay coins={p.coins} />
         </View>
 
@@ -202,7 +198,8 @@ function Tile({
     <Pressable onPress={onPress} style={styles.tileWrap} accessibilityRole="button" accessibilityLabel={`${title}. ${detail}`}>
       {({ pressed }) => (
         <HardShadow size="md">
-          <View style={[styles.tile, { backgroundColor: color }, pressed && styles.pressed]}>
+          {/* Never flattened: see BrutalistButton. */}
+          <View collapsable={false} style={[styles.tile, { backgroundColor: color }, pressed && styles.pressed]}>
             <OnColor>
               {icon}
               <Text style={styles.tileTitle} numberOfLines={1}>

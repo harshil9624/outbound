@@ -11,8 +11,8 @@ import { hitTestArrow } from '@/game/layout/hitTest';
 import { borderWidths, colors, palette, radii, shadowOffsets, spacing, textStyles, themed } from '@/theme';
 import { HardShadow } from '@/components/ui/HardShadow';
 import { BOARD_ANIMALS, type FaceAnimal } from '@/constants/animals';
-import { ArrowFace } from './ArrowFace';
-import { ArrowPath, createArrowMotion, type ArrowMotion } from './ArrowPath';
+import { ArrowFace, StaticArrowFace } from './ArrowFace';
+import { ArrowPath, StaticArrowPath, createArrowMotion, type ArrowMotion } from './ArrowPath';
 import { BoardGrid } from './BoardGrid';
 import { CoachHand } from './CoachHand';
 import { HammerHover } from './HammerHover';
@@ -79,6 +79,18 @@ function GameBoardComponent({
 
   const occupancy = useMemo(() => buildOccupancy(game), [game.arrows, game.remainingIds]);
 
+  // Faces are the heaviest part of a board (an SVG canvas each). They mount one frame after the
+  // arrows to split the work, but the board stays hidden until both are in, then fades in whole:
+  // the player never sees arrows without their faces.
+  const hasLayout = layout !== null;
+  const [facesReady, setFacesReady] = useState(false);
+  useEffect(() => {
+    setFacesReady(false);
+    if (!hasLayout) return;
+    const frame = requestAnimationFrame(() => setFacesReady(true));
+    return () => cancelAnimationFrame(frame);
+  }, [game.arrowOrder, hasLayout]);
+
   // One motion per arrow, recreated per level/restart (a new arrowOrder array).
   const motions = useMemo(() => {
     const m: Record<string, ArrowMotion> = {};
@@ -102,6 +114,28 @@ function GameBoardComponent({
 
   const exitingSet = useMemo(() => new Set(exitingIds), [exitingIds]);
   const smashingSet = useMemo(() => new Set(smashingIds), [smashingIds]);
+
+  // Arrows start as plain drawings and switch to their animated version the first time they move
+  // (exit, bump, blocker flash, hint, hammer), then stay animated. Most arrows sit still until
+  // tapped, so a level mounts without hundreds of animation hooks.
+  const everLive = useRef(new Set<string>());
+  const liveFor = useRef(game.arrowOrder);
+  if (liveFor.current !== game.arrowOrder) {
+    liveFor.current = game.arrowOrder;
+    everLive.current = new Set();
+  }
+  const isLive = (id: string) => {
+    if (
+      exitingSet.has(id) ||
+      bump?.arrowId === id ||
+      bump?.blockerId === id ||
+      hintArrowId === id ||
+      coachTarget === id
+    ) {
+      everLive.current.add(id);
+    }
+    return everLive.current.has(id);
+  };
 
   // Hammer layer coordinates: the board frame's content origin inside this container.
   const [origin, setOrigin] = useState<{ x: number; y: number } | null>(null);
@@ -176,7 +210,12 @@ function GameBoardComponent({
       withTiming(0, { duration: 50 }),
     );
   }, [shake]);
+  const reveal = useSharedValue(0);
+  useEffect(() => {
+    reveal.value = facesReady ? withTiming(1, { duration: reducedMotion ? 0 : 120 }) : 0;
+  }, [facesReady, reducedMotion, reveal]);
   const shakeStyle = useAnimatedStyle(() => ({
+    opacity: reveal.value,
     transform: [{ translateX: shake.value }, { translateY: Math.abs(shake.value) * 0.5 }],
   }));
 
@@ -216,7 +255,10 @@ function GameBoardComponent({
               >
                 <Svg width={layout.width} height={layout.height} pointerEvents="none">
                   <BoardGrid layout={layout} />
-                  {visibleIds.map((id) => (
+                  {visibleIds.map((id) =>
+                    !isLive(id) ? (
+                      <StaticArrowPath key={id} arrow={game.arrows[id]} layout={layout} />
+                    ) : (
                     <ArrowPath
                       key={id}
                       arrow={game.arrows[id]}
@@ -230,9 +272,19 @@ function GameBoardComponent({
                       reducedMotion={reducedMotion}
                       onExitComplete={onExitComplete}
                     />
-                  ))}
+                    ),
+                  )}
                 </Svg>
-                {visibleIds.map((id) => (
+                {facesReady && visibleIds.map((id) =>
+                  !isLive(id) ? (
+                    <StaticArrowFace
+                      key={id}
+                      arrow={game.arrows[id]}
+                      layout={layout}
+                      animal={animals[id]}
+                      scared={hammerArmed && !exitingSet.has(id)}
+                    />
+                  ) : (
                   <ArrowFace
                     key={id}
                     arrow={game.arrows[id]}
@@ -245,7 +297,8 @@ function GameBoardComponent({
                     hinted={hintArrowId === id || coachTarget === id}
                     reducedMotion={reducedMotion}
                   />
-                ))}
+                  ),
+                )}
               </Pressable>
             </View>
           </HardShadow>

@@ -26,7 +26,8 @@ interface GameData {
 }
 
 interface GameActions {
-  startLevel: (level: Level) => void;
+  /** `game` lets the screen build the state during its first render and hand it over unchanged. */
+  startLevel: (level: Level, game?: GameState) => void;
   restart: () => void;
   tapArrow: (arrowId: string) => TapResult | null;
   /** Hammer: removes the arrow regardless of blockers and disarms. Returns false if not allowed. */
@@ -57,8 +58,8 @@ export const useGameStore = create<GameStore>()((set, get) => ({
   ...EMPTY_SESSION,
   lastResult: null,
 
-  startLevel: (level) =>
-    set({ ...EMPTY_SESSION, level, game: createGameState(level) }),
+  startLevel: (level, game) =>
+    set({ ...EMPTY_SESSION, level, game: game && game.levelId === level.id ? game : createGameState(level) }),
 
   restart: () => {
     const { level } = get();

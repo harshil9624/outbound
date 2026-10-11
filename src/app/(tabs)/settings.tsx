@@ -1,12 +1,13 @@
-import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import Constants from 'expo-constants';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { playSound } from '@/audio/sounds';
 import { ANIMAL_COLORS, AVATARS } from '@/constants/animals';
 import { APP_DESCRIPTION, APP_DISPLAY_NAME } from '@/constants/app';
+import { levelProvider } from '@/game/levels/levelProvider';
 import { MAX_NAME_LENGTH, usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { AnimalFace } from '@/components/game/AnimalFace';
@@ -33,6 +34,14 @@ export default function SettingsRoute() {
       setSetting: s.setSetting,
     })),
   );
+
+  // Hidden developer tools: not saved, so they're gone after the app restarts.
+  const [devUnlocked, setDevUnlocked] = useState(false);
+  const versionTaps = useRef(0);
+  const onVersionTap = useCallback(() => {
+    versionTaps.current += 1;
+    if (versionTaps.current >= 7) setDevUnlocked(true);
+  }, []);
 
   return (
     <Screen edges={['top', 'left', 'right']} style={styles.screen}>
@@ -69,11 +78,14 @@ export default function SettingsRoute() {
 
         <Section title="About">
           <Row label={APP_DISPLAY_NAME} hint={APP_DESCRIPTION}>
-            <Text style={styles.version}>v{Constants.expoConfig?.version ?? '—'}</Text>
+            {/* Seven taps on the version opens the developer tools in any build (testers' APKs too). */}
+            <Pressable onPress={onVersionTap} hitSlop={8} accessibilityRole="text">
+              <Text style={styles.version}>v{Constants.expoConfig?.version ?? '—'}</Text>
+            </Pressable>
           </Row>
         </Section>
 
-        {__DEV__ ? <DevCoins /> : null}
+        {__DEV__ || devUnlocked ? <DevTools /> : null}
       </ScrollView>
     </Screen>
   );
@@ -269,9 +281,16 @@ const ResetProgress = memo(function ResetProgress() {
   );
 });
 
-/** Development builds only: top up coins to test boosts. Never shipped in release builds. */
-const DevCoins = memo(function DevCoins() {
+/**
+ * Testing tools: coins for boosts, jump to any level (the last one in a tap), unlock the whole map.
+ * Shown in development builds, or after seven taps on the version number in any build.
+ */
+const DevTools = memo(function DevTools() {
+  const router = useRouter();
   const coins = usePlayerStore((s) => s.coins);
+  const last = levelProvider.count();
+  const [pick, setPick] = useState(last);
+  const play = (id: number) => router.push({ pathname: '/level/[levelId]', params: { levelId: String(id) } });
   const add = (amount: number) => {
     usePlayerStore.getState().addCoins(amount);
     playSound('coin');
@@ -285,10 +304,28 @@ const DevCoins = memo(function DevCoins() {
           <Text style={textStyles.number}>{coins}</Text>
         </View>
       </View>
-      <Text style={textStyles.caption}>Developer build only</Text>
+      <Text style={textStyles.caption}>Testing tools</Text>
       <View style={styles.devButtons}>
         <BrutalistButton label="+100" onPress={() => add(100)} color="primary" size="sm" sound={null} />
         <BrutalistButton label="+1000" onPress={() => add(1000)} color="primary" size="sm" sound={null} />
+      </View>
+      <View style={styles.devHeader}>
+        <Text style={textStyles.subheading}>Play any level</Text>
+      </View>
+      <View style={styles.devButtons}>
+        <BrutalistButton label="−" onPress={() => setPick((n) => Math.max(1, n - 1))} color="surface" size="sm" accessibilityLabel="Previous level" />
+        <Text style={textStyles.number}>{pick}</Text>
+        <BrutalistButton label="+" onPress={() => setPick((n) => Math.min(last, n + 1))} color="surface" size="sm" accessibilityLabel="Next level" />
+        <BrutalistButton label={`PLAY ${pick}`} onPress={() => play(pick)} color="success" size="sm" />
+      </View>
+      <View style={styles.devButtons}>
+        <BrutalistButton label={`PLAY LAST (${last})`} onPress={() => play(last)} color="success" size="sm" />
+        <BrutalistButton
+          label="UNLOCK ALL"
+          onPress={() => usePlayerStore.setState((s) => ({ unlockedLevel: Math.max(s.unlockedLevel, last) }))}
+          color="info"
+          size="sm"
+        />
       </View>
       {/* Level 1's guided hand shows until it's finished once; this brings it back for testing. */}
       <BrutalistButton
@@ -486,6 +523,6 @@ const styles = themed(() => StyleSheet.create({
   devCard: { gap: spacing.sm },
   devHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   devBalance: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
-  devButtons: { flexDirection: 'row', gap: spacing.md, marginTop: spacing.xs },
+  devButtons: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: spacing.md, marginTop: spacing.xs },
   devTutorial: { alignSelf: 'flex-start' },
 }));

@@ -159,6 +159,7 @@ function TileShell({
   return (
     <Pressable
       onPress={() => onPress(node)}
+      disabled={locked}
       hitSlop={10}
       accessibilityRole="button"
       accessibilityLabel={labelFor(node)}
@@ -174,7 +175,9 @@ function TileShell({
               shadowStyle,
             ]}
           />
+          {/* Never flattened: see BrutalistButton. */}
           <View
+            collapsable={false}
             style={[
               styles.face,
               {

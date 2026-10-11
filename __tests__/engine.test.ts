@@ -111,7 +111,7 @@ describe('stars + reward', () => {
   it('only first clears pay coins', () => {
     const first = calculateReward({ difficulty: 'normal', stars: 3, isFirstClear: true });
     const replay = calculateReward({ difficulty: 'normal', stars: 3, isFirstClear: false });
-    expect(first.total).toBe(15 + 15 + 10);
+    expect(first.total).toBe(8 + 3 * 2);
     expect(replay.total).toBe(0);
   });
 });

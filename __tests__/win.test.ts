@@ -50,7 +50,7 @@ describe('win screen: where NEXT goes', () => {
 });
 
 describe('win screen: stats tiles agree with the stars', () => {
-  // WinStats lights MISTAKES and HELP (hints + hammers) green only at zero. Three stars must mean
+  // The win screen once lit MISTAKES and HELP (hints + hammers) green only at zero. Three stars must mean
   // both tiles are green, and a lost star must always show up in one of them.
   it.each([
     [0, 0, 0],

@@ -93,14 +93,11 @@ export default function JourneyRoute() {
     return last;
   }, [allNodes]);
 
+  // Locked levels are disabled: their tiles take no taps (see JourneyTile), and this ignores them too.
   const onPressNode = useCallback((n: MapNode) => {
+    if (n.state === 'locked') return;
     setSelectedId(n.levelId);
-    if (n.state === 'locked') {
-      setShake((s) => ({ levelId: n.levelId, token: (s?.token ?? 0) + 1 }));
-      playSound('blocked');
-    } else {
-      playSound('tap');
-    }
+    playSound('tap');
   }, []);
 
   // One level per tap: a double tap used to push two level screens. Re-armed when the map is back in view.

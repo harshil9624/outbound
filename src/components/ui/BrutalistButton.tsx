@@ -55,8 +55,12 @@ export function BrutalistButton({
     >
       {({ pressed }) => (
         <>
-          <View style={[styles.shadow, shadowBySize[shadow], cornerStyles.sm]} />
+          <View collapsable={false} style={[styles.shadow, shadowBySize[shadow], cornerStyles.sm]} />
+          {/* collapsable={false}: never flattened. A pressed-state change that also flattens or
+              unflattens a view makes Android's New Architecture move its children; if that lands in
+              the same frame as a navigation, the app crashes ("child already has a parent"). */}
           <View
+            collapsable={false}
             style={[
               styles.face,
               cornerStyles.sm,

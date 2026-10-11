@@ -12,7 +12,7 @@
     "android:apk:debug": "android/gradlew.bat -p android assembleDebug",
     "android:aab": "android/gradlew.bat -p android bundleRelease",
     "android:release:device": "expo run:android --variant release",
-    "android:clean": "android/gradlew.bat -p android clean",
+    "android:clean": "bun scripts/cleanAndroid.ts",
     "eas:preview": "bunx eas-cli build --platform android --profile preview",
     "eas:production": "bunx eas-cli build --platform android --profile production",
     "test": "bun test",

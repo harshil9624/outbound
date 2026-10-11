@@ -41,7 +41,8 @@ export default function RootLayout() {
       >
         <Stack.Screen name="index" />
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="level/[levelId]" options={{ gestureEnabled: false }} />
+        {/* No screen fade into a level: it waited for the whole board to build. The board fades itself in. */}
+        <Stack.Screen name="level/[levelId]" options={{ gestureEnabled: false, animation: 'none' }} />
         <Stack.Screen name="win/index" options={{ gestureEnabled: false }} />
       </Stack>
     </SafeAreaProvider>

@@ -1,5 +1,5 @@
 import { memo, useEffect, useMemo, useState } from 'react';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import Animated, {
   Extrapolation,
   cancelAnimation,
@@ -115,3 +115,27 @@ const styles = themed(() => StyleSheet.create({
   abs: { position: 'absolute' },
   ring: { borderWidth: 4, borderColor: colors.accent, backgroundColor: 'rgba(255,79,163,0.15)' },
 }));
+
+/** The face at rest: a plain view, no animation hooks (see StaticArrowPath). */
+export const StaticArrowFace = memo(function StaticArrowFace({
+  arrow,
+  layout,
+  animal,
+  scared,
+}: {
+  arrow: BoardArrow;
+  layout: BoardLayout;
+  animal: FaceAnimal;
+  scared: boolean;
+}) {
+  const geo = useMemo(() => buildArrowRenderGeometry(arrow, layout), [arrow, layout]);
+  const size = layout.cellSize * ARROW_FACE_BOX;
+  const box = { left: geo.head.x - size / 2, top: geo.head.y - size / 2, width: size, height: size };
+  return (
+    <View pointerEvents="none" style={[staticStyles.abs, box]}>
+      <AnimalFace animal={animal} color={arrowColors[arrow.color]} dir={geo.dir} mood={scared ? 'scared' : 'happy'} size={size} />
+    </View>
+  );
+});
+
+const staticStyles = StyleSheet.create({ abs: { position: 'absolute' } });

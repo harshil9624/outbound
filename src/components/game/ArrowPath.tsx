@@ -205,3 +205,28 @@ function ArrowPathComponent({
 }
 
 export const ArrowPath = memo(ArrowPathComponent);
+
+/**
+ * The same arrow at rest, drawn with plain Paths: no animation hooks, so a 40-arrow level mounts
+ * fast. GameBoard swaps in ArrowPath the first time an arrow moves (tap, bump, flash, hint, hammer).
+ */
+export const StaticArrowPath = memo(function StaticArrowPath({ arrow, layout }: { arrow: BoardArrow; layout: BoardLayout }) {
+  const geo = useMemo(() => buildArrowRenderGeometry(arrow, layout), [arrow, layout]);
+  const fill = arrowColors[arrow.color];
+  const common = {
+    d: geo.pathD,
+    fill: 'none',
+    strokeLinecap: 'round',
+    strokeLinejoin: 'round',
+    strokeDasharray: geo.dashArray,
+    strokeDashoffset: 0,
+  } as const;
+  return (
+    <G>
+      <Path {...common} d={geo.shadowD} stroke={colors.artInk} strokeWidth={geo.outlineWidth} />
+      <Path {...common} stroke={colors.artInk} strokeWidth={geo.outlineWidth} />
+      <Path {...common} stroke={fill} strokeWidth={geo.bodyWidth} />
+      <Path {...common} d={geo.highlightD} stroke="#FFFFFF" strokeOpacity={0.5} strokeWidth={geo.highlightWidth} />
+    </G>
+  );
+});

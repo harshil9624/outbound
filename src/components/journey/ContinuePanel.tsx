@@ -8,7 +8,7 @@ import { BrutalistButton } from '@/components/ui/BrutalistButton';
 import { borderWidths, colors, fontWeights, palette, spacing, textStyles, themed } from '@/theme';
 import { LevelThumbnail } from './LevelThumbnail';
 
-const DIFFICULTY_LABEL: Record<Level['difficulty'], string> = { easy: 'Easy', normal: 'Medium', hard: 'Hard' };
+const DIFFICULTY_LABEL: Record<Level['difficulty'], string> = { simple: 'Simple', easy: 'Easy', normal: 'Medium', hard: 'Hard', 'extra-hard': 'Extra Hard' };
 
 interface ContinuePanelProps {
   node: MapNode | null;

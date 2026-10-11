@@ -4,6 +4,7 @@ import { playSound } from '@/audio/sounds';
 import { HAMMER_IMPACT_MS } from '@/constants/animation';
 import { BOOST_COSTS } from '@/constants/gameConfig';
 import { canAddLife } from '@/game/engine/addLife';
+import { createGameState } from '@/game/engine/createGameState';
 import { findHint } from '@/game/engine/findHint';
 import { COACH_TEXT, TUTORIAL_LEVEL, coachPoints, nextCoachStep, type CoachStep } from '@/game/session/coach';
 import { nextMainLevel } from '@/game/journey/progress';
@@ -22,8 +23,11 @@ import { vibrateBlocked } from '@/utils/haptics';
  */
 export function useLevelSession(levelId: number, onWin: () => void) {
   const level = useMemo(() => levelProvider.getLevel(levelId), [levelId]);
+  // Built during the first render, so the board draws at once instead of after an empty render
+  // and a store update. The store gets this same object, so nothing re-renders when it arrives.
+  const initialGame = useMemo(() => (level ? createGameState(level) : null), [level]);
 
-  const { game, exitingIds, smashingIds, hintArrowId, bump, hammerArmed } = useGameStore(
+  const { game: storeGame, exitingIds, smashingIds, hintArrowId, bump, hammerArmed } = useGameStore(
     useShallow((s) => ({
       game: s.game,
       exitingIds: s.exitingIds,
@@ -43,6 +47,8 @@ export function useLevelSession(levelId: number, onWin: () => void) {
     })),
   );
   const coins = usePlayerStore((s) => s.coins);
+  // Until the store has this level's session, show the one built above.
+  const game = storeGame && storeGame.levelId === levelId ? storeGame : initialGame;
 
   const finalized = useRef(false);
 
@@ -59,10 +65,10 @@ export function useLevelSession(levelId: number, onWin: () => void) {
     if (!level) return;
     finalized.current = false;
     resetCoach();
-    startLevel(level);
+    startLevel(level, initialGame ?? undefined);
     usePlayerStore.getState().setCurrentLevel(level.id);
     return () => endSession();
-  }, [level, startLevel, endSession, resetCoach]);
+  }, [level, initialGame, startLevel, endSession, resetCoach]);
 
   // Win only after the last exit animation has finished.
   useEffect(() => {

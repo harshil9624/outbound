@@ -5,7 +5,7 @@ export const level05: Level = {
   id: 5,
   boardWidth: 6,
   boardHeight: 6,
-  difficulty: 'normal',
+  difficulty: 'simple',
   arrows: [
     arrow('a', 'yellow', 'left', [[5, 0], [0, 0]]),
     arrow('b', 'blue', 'up', [[5, 5], [5, 1]]),
