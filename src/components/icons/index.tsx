@@ -228,3 +228,19 @@ export const SnowflakeIcon = memo(function SnowflakeIcon({ size = 22, color = '#
     </Svg>
   );
 });
+
+/** Speaker for sound controls. `muted` adds a cross instead of the sound waves. */
+export const SpeakerIcon = memo(function SpeakerIcon({ size = 22, color, muted = false }: IconProps & { muted?: boolean }) {
+  const ink = useInk();
+  const c = color ?? ink;
+  return (
+    <Svg width={size} height={size} viewBox="0 0 24 24">
+      <Polygon points="3,9 7.5,9 13,4.5 13,19.5 7.5,15 3,15" fill={c} strokeLinejoin="round" />
+      {muted ? (
+        <Path d="M16 9 L21.5 14.5 M21.5 9 L16 14.5" stroke={c} strokeWidth={2.6} strokeLinecap="round" />
+      ) : (
+        <Path d="M16 8.5 A5 5 0 0 1 16 15.5 M18.6 5.8 A8.6 8.6 0 0 1 18.6 18.2" fill="none" stroke={c} strokeWidth={2.4} strokeLinecap="round" />
+      )}
+    </Svg>
+  );
+});

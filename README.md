@@ -246,13 +246,13 @@ Current Android identity (from `app.json` and the generated Gradle config):
 
 | Setting | Value |
 |---|---|
-| Application ID / package | `com.yourstudio.outbound` |
+| Application ID / package | `com.arrowzing.arrowmigos` |
 | versionName | `0.1.0` |
 | versionCode | `1` |
 | Orientation | portrait |
 | URL scheme | `outbound` |
 
-`com.yourstudio.outbound` is a placeholder. Choose the final package name before the first Play Store upload, because it cannot be changed afterwards.
+This is the final package name: once the app is on Google Play it can never change. App icon: `assets/images/icon.png` (standard) and `assets/images/adaptive-icon.png` (adaptive, on a white background), made from `assets/images/logo-source.png`.
 
 ### Branding
 

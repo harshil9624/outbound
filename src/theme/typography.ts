@@ -4,15 +4,16 @@ import { themed } from './themeMode';
 
 /**
  * Two faces, the way casual game studios pair them: a chunky display face for titles, buttons and
- * big numbers (Lilita One, in the spirit of Supercell's lettering) and a rounded UI face for
- * everything else (Nunito, close to Duolingo's rounded type). Both are loaded in the root layout.
+ * big numbers (Lilita One) and a rounded UI face for everything else (Nunito). Both ship as .ttf
+ * files in assets/fonts (SIL Open Font License, see the OFL files there) and are loaded in the
+ * root layout under these names.
  */
 export const fonts = {
-  display: 'LilitaOne_400Regular',
-  semiBold: 'Nunito_600SemiBold',
-  bold: 'Nunito_700Bold',
-  extraBold: 'Nunito_800ExtraBold',
-  black: 'Nunito_900Black',
+  display: 'LilitaOne',
+  semiBold: 'Nunito-SemiBold',
+  bold: 'Nunito-Bold',
+  extraBold: 'Nunito-ExtraBold',
+  black: 'Nunito-Black',
 } as const;
 
 /**

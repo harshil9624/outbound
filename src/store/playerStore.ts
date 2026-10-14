@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { LevelResult, StarCount } from '@/types';
+import type { BoostKind, FreeBoosts, LevelResult, StarCount } from '@/types';
+import { NO_FREE_BOOSTS, addBoosts } from '@/game/progression/milestones';
 import { STARTING_COINS } from '@/constants/gameConfig';
 import {
   INITIAL_STREAK,
@@ -36,6 +37,8 @@ interface PlayerData {
   streakRewardsClaimed: number[];
   /** The guided first level has been finished once; the coach never shows again. */
   tutorialDone: boolean;
+  /** Boosts won from chapter chests and challenge perks: used before any coins are spent. */
+  freeBoosts: FreeBoosts;
 }
 
 export interface MapSeen {
@@ -57,6 +60,8 @@ interface PlayerActions {
   claimStreakReward: (days: number) => number;
   resetProgress: () => void;
   markTutorialDone: () => void;
+  /** Uses one free boost of this kind. Returns false (and changes nothing) if there are none. */
+  useFreeBoost: (kind: BoostKind) => boolean;
 }
 
 export type PlayerStore = PlayerData & PlayerActions;
@@ -76,6 +81,7 @@ const INITIAL_PLAYER: PlayerData = {
   playDays: [],
   streakRewardsClaimed: [],
   tutorialDone: false,
+  freeBoosts: NO_FREE_BOOSTS,
 };
 
 export const usePlayerStore = create<PlayerStore>()(
@@ -108,6 +114,8 @@ export const usePlayerStore = create<PlayerStore>()(
             currentLevel: nextLevel === null ? s.currentLevel : Math.max(s.currentLevel, nextLevel),
             // Any clear counts as playing today, replays included: the streak rewards the daily
             // habit. Replays pay no coins, so this can't be farmed for rewards.
+            // A chapter chest or challenge perk adds its free boosts.
+            freeBoosts: result.milestone ? addBoosts(s.freeBoosts, result.milestone.boosts) : s.freeBoosts,
             streak: registerPlayDay(s.streak, toDayKey()),
             playDays: s.playDays.includes(toDayKey()) ? s.playDays : [...s.playDays, toDayKey()],
           };
@@ -136,11 +144,18 @@ export const usePlayerStore = create<PlayerStore>()(
       resetProgress: () => set((s) => ({ ...INITIAL_PLAYER, name: s.name, avatar: s.avatar, tutorialDone: s.tutorialDone })),
 
       markTutorialDone: () => set((s) => (s.tutorialDone ? s : { tutorialDone: true })),
+
+      useFreeBoost: (kind) => {
+        const s = get();
+        if (s.freeBoosts[kind] <= 0) return false;
+        set({ freeBoosts: { ...s.freeBoosts, [kind]: s.freeBoosts[kind] - 1 } });
+        return true;
+      },
     }),
     {
       name: STORAGE_KEYS.player,
       storage: zustandStorage,
-      version: 5,
+      version: 6,
       // Persist data only, never actions.
       partialize: (s): PlayerData => ({
         name: s.name,
@@ -155,6 +170,7 @@ export const usePlayerStore = create<PlayerStore>()(
         playDays: s.playDays,
         streakRewardsClaimed: s.streakRewardsClaimed,
         tutorialDone: s.tutorialDone,
+        freeBoosts: s.freeBoosts,
       }),
       migrate: (persisted, fromVersion) => {
         let data = persisted as PlayerData;
@@ -167,6 +183,8 @@ export const usePlayerStore = create<PlayerStore>()(
         if (fromVersion < 4) data = { ...data, playDays: streakDayKeys(data.streak), streakRewardsClaimed: [] };
         // v5 added the guided first level: anyone who already cleared a level knows how to play.
         if (fromVersion < 5) data = { ...data, tutorialDone: data.completedLevels.length > 0 };
+        // v6 added free boosts from chapter chests and challenge perks: everyone starts with none.
+        if (fromVersion < 6) data = { ...data, freeBoosts: NO_FREE_BOOSTS };
         return data;
       },
     },

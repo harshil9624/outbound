@@ -4,13 +4,15 @@ import { Text } from '@/components/ui/Text';
 import type { SoundName } from '@/audio/sounds';
 import { CoinIcon } from '@/components/icons';
 import { BrutalistButton } from '@/components/ui/BrutalistButton';
-import { borderWidths, colors, radii, spacing, textStyles, type SurfaceColor, themed } from '@/theme';
+import { borderWidths, colors, radii, spacing, textStyles, type SurfaceColor, themed, palette } from '@/theme';
 
 interface BoostButtonProps {
   icon: ReactNode;
   label: string;
   /** Coin price; omitted for free actions. */
   cost?: number;
+  /** Free boosts of this kind the player holds: shown instead of the price while any are left. */
+  free?: number;
   color: SurfaceColor;
   /** Greyed out (unaffordable / not usable now) but still tappable, so the tap can explain why. */
   disabled: boolean;
@@ -25,6 +27,7 @@ export const BoostButton = memo(function BoostButton({
   icon,
   label,
   cost,
+  free = 0,
   color,
   disabled,
   active = false,
@@ -41,9 +44,13 @@ export const BoostButton = memo(function BoostButton({
           color={active ? 'danger' : color}
           size="lg"
           sound={sound}
-          accessibilityLabel={cost !== undefined ? `${label}, ${cost} coins` : label}
+          accessibilityLabel={free > 0 ? `${label}, ${free} free` : cost !== undefined ? `${label}, ${cost} coins` : label}
         />
-        {cost !== undefined ? (
+        {free > 0 ? (
+          <View style={styles.free} pointerEvents="none">
+            <Text style={styles.freeText}>FREE ×{free}</Text>
+          </View>
+        ) : cost !== undefined ? (
           <View style={[styles.price, disabled && styles.priceDisabled]} pointerEvents="none">
             <CoinIcon size={14} />
             <Text style={styles.priceText}>{cost}</Text>
@@ -75,6 +82,18 @@ const styles = themed(() => StyleSheet.create({
     backgroundColor: colors.surface,
   },
   priceDisabled: { backgroundColor: colors.disabled },
+  free: {
+    position: 'absolute',
+    top: -spacing.sm,
+    right: -spacing.sm,
+    paddingVertical: 1,
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.pill,
+    borderWidth: borderWidths.thin,
+    borderColor: palette.black,
+    backgroundColor: palette.green,
+  },
+  freeText: { ...textStyles.caption, color: palette.black, fontWeight: '900' },
   priceText: { ...textStyles.caption, color: colors.ink, fontWeight: '900' },
   label: { ...textStyles.caption, color: colors.ink, fontWeight: '900', letterSpacing: 0.5, textAlign: 'center' },
   labelDisabled: { color: colors.disabledInk },

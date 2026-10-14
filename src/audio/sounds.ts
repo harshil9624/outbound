@@ -31,12 +31,14 @@ export function preloadSounds(): void {
   ) as Record<SoundName, AudioPlayer>;
 }
 
-/** Plays an effect from the start, if the Sound setting is on. Never throws. */
+/** Plays an effect from the start at the chosen volume, if the Sound setting is on. Never throws. */
 export function playSound(name: SoundName): void {
-  if (!useSettingsStore.getState().soundEnabled) return;
+  const { soundEnabled, volume } = useSettingsStore.getState();
+  if (!soundEnabled || volume <= 0) return;
   try {
     preloadSounds();
     const player = players![name];
+    if (player.volume !== volume) player.volume = volume;
     // A player that hasn't played yet is already at the start. One that has rewinds first and
     // plays once the rewind lands: seekTo and play reach the native player by different routes,
     // so sent back to back they could arrive swapped.

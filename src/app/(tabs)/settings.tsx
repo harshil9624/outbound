@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import Constants from 'expo-constants';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -11,8 +11,10 @@ import { levelProvider } from '@/game/levels/levelProvider';
 import { MAX_NAME_LENGTH, usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { AnimalFace } from '@/components/game/AnimalFace';
-import { CoinIcon, MoonIcon, SunIcon } from '@/components/icons';
+import { CoinIcon, FlameIcon, MoonIcon, RouteIcon, StarIcon, SunIcon } from '@/components/icons';
 import { BrutalistButton, BrutalistCard, OnColor, Screen } from '@/components/ui';
+import { HardShadow } from '@/components/ui/HardShadow';
+import { Toggle } from '@/components/ui/Toggle';
 import { MAX_FONT_SCALE, arrowColors, borderWidths, colors, fonts, fontWeights, palette, setThemeMode, spacing, textStyles, type ThemeMode, useThemeMode, themed } from '@/theme';
 import { withAlpha } from '@/utils/color';
 import { vibrateBlocked } from '@/utils/haptics';
@@ -50,6 +52,8 @@ export default function SettingsRoute() {
 
         <ProfileCard />
 
+        <StatsSection />
+
         <Section title="Appearance">
           <ThemePicker />
         </Section>
@@ -73,6 +77,8 @@ export default function SettingsRoute() {
         </Section>
 
         <HowToPlay />
+
+        <PlayMore />
 
         <ResetProgress />
 
@@ -123,8 +129,9 @@ const ProfileCard = memo(function ProfileCard() {
   return (
     <BrutalistCard color="primary" shadow="lg" contentStyle={styles.profile}>
       <View style={styles.profileTop}>
+        {/* Sized to fit inside the 76 circle's border, ears and pointer included (see Home's avatar). */}
         <View style={styles.bigAvatar}>
-          <AnimalFace animal={avatar} color={arrowColors[ANIMAL_COLORS[avatar]]} dir={{ x: 1, y: 0 }} mood="happy" size={84} />
+          <AnimalFace animal={avatar} color={arrowColors[ANIMAL_COLORS[avatar]]} dir={{ x: 1, y: 0 }} mood="happy" size={66} />
         </View>
         <View style={styles.profileName}>
           <Text style={styles.eyebrow}>PLAYER NAME</Text>
@@ -339,6 +346,61 @@ const DevTools = memo(function DevTools() {
   );
 });
 
+/** Four coloured tiles: how far the player has come. */
+const StatsSection = memo(function StatsSection() {
+  const p = usePlayerStore(
+    useShallow((s) => ({ completedLevels: s.completedLevels, stars: s.stars, best: s.streak.best, coins: s.coins })),
+  );
+  const cleared = p.completedLevels.filter((id) => levelProvider.hasLevel(id)).length;
+  const total = levelProvider.count();
+  const stars = Object.entries(p.stars).reduce((sum, [id, n]) => (levelProvider.hasLevel(Number(id)) ? sum + n : sum), 0);
+  return (
+    <Section title="Your stats">
+      <View style={styles.stats}>
+        <StatTile icon={<RouteIcon size={24} color={palette.yellow} />} value={`${cleared}/${total}`} label="Levels cleared" color={palette.blue} />
+        <StatTile icon={<StarIcon size={24} />} value={`${stars}/${total * 3}`} label="Stars earned" color={palette.yellow} />
+        <StatTile icon={<FlameIcon size={24} color={palette.yellow} />} value={p.best === 1 ? '1 day' : `${p.best} days`} label="Best streak" color={palette.pink} />
+        <StatTile icon={<CoinIcon size={24} />} value={String(p.coins)} label="Coins" color={palette.green} />
+      </View>
+    </Section>
+  );
+});
+
+function StatTile({ icon, value, label, color }: { icon: ReactNode; value: string; label: string; color: string }) {
+  return (
+    <View style={styles.statWrap} accessible accessibilityLabel={`${label}: ${value}`}>
+      <HardShadow size="sm">
+        <View style={[styles.statTile, { backgroundColor: color }]}>
+          <OnColor>
+            {icon}
+            <Text style={styles.statValue} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {value}
+            </Text>
+            <Text style={styles.statLabel} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.7}>
+              {label}
+            </Text>
+          </OnColor>
+        </View>
+      </HardShadow>
+    </View>
+  );
+}
+
+/** Tell a friend. */
+const PlayMore = memo(function PlayMore() {
+  const share = () => {
+    // Text only: there's no store link until the game is published.
+    Share.share({ message: `I'm playing ${APP_DISPLAY_NAME}: tap the arrows in the right order and clear the board. Can you solve it?` }).catch(() => {});
+  };
+  return (
+    <Section title="Play more">
+      <Row label="Share with friends" hint={`Tell a friend about ${APP_DISPLAY_NAME}`}>
+        <BrutalistButton label="Share" onPress={share} color="info" size="sm" />
+      </Row>
+    </Section>
+  );
+});
+
 function Section({
   title,
   action,
@@ -403,30 +465,6 @@ const ThemePicker = memo(function ThemePicker() {
   );
 });
 
-interface ToggleProps {
-  label: string;
-  value: boolean;
-  onChange: (value: boolean) => void;
-}
-
-function Toggle({ label, value, onChange }: ToggleProps) {
-  return (
-    <Pressable
-      onPress={() => onChange(!value)}
-      accessibilityRole="switch"
-      accessibilityLabel={label}
-      accessibilityState={{ checked: value }}
-      hitSlop={spacing.sm}
-      style={[styles.track, value ? styles.trackOn : styles.trackOff]}
-    >
-      <View style={styles.knob} />
-    </Pressable>
-  );
-}
-
-const TRACK_W = 58;
-const TRACK_H = 32;
-
 const styles = themed(() => StyleSheet.create({
   screen: { paddingBottom: 0 },
   content: { gap: spacing.xl, paddingTop: spacing.md, paddingBottom: spacing.xxl },
@@ -482,6 +520,17 @@ const styles = themed(() => StyleSheet.create({
   rowDivider: { borderTopWidth: borderWidths.thin, borderTopColor: colors.ink },
   rowText: { flex: 1, gap: spacing.xxs },
   version: { ...textStyles.label, fontVariant: ['tabular-nums'] },
+  stats: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md, paddingBottom: spacing.sm },
+  statWrap: { flexBasis: '45%', flexGrow: 1 },
+  statTile: {
+    minHeight: 96,
+    padding: spacing.md,
+    gap: 2,
+    borderWidth: borderWidths.regular,
+    borderColor: colors.ink,
+  },
+  statValue: { fontSize: 22, fontWeight: fontWeights.heavy, color: colors.ink, fontVariant: ['tabular-nums'], marginTop: spacing.xs },
+  statLabel: { ...textStyles.caption, color: colors.ink },
   rules: { gap: spacing.md, paddingVertical: spacing.sm },
   rule: { flexDirection: 'row', gap: spacing.md, alignItems: 'flex-start' },
   ruleNum: {
@@ -498,24 +547,6 @@ const styles = themed(() => StyleSheet.create({
   confirm: { gap: spacing.md, paddingVertical: spacing.sm },
   // Wraps onto two lines when both buttons don't fit (small phone, big text).
   confirmActions: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'flex-end', gap: spacing.md },
-  track: {
-    width: TRACK_W,
-    height: TRACK_H,
-    borderRadius: TRACK_H / 2,
-    borderWidth: borderWidths.regular,
-    borderColor: colors.ink,
-    padding: 2,
-  },
-  trackOn: { backgroundColor: colors.success, alignItems: 'flex-end' },
-  trackOff: { backgroundColor: colors.disabled, alignItems: 'flex-start' },
-  knob: {
-    width: TRACK_H - 10,
-    height: TRACK_H - 10,
-    borderRadius: (TRACK_H - 10) / 2,
-    backgroundColor: colors.surface,
-    borderWidth: borderWidths.thin,
-    borderColor: colors.ink,
-  },
   themes: { flexDirection: 'row', justifyContent: 'space-evenly', paddingVertical: spacing.sm },
   themeOption: { alignItems: 'center', gap: spacing.sm },
   themeLabel: { ...textStyles.label },

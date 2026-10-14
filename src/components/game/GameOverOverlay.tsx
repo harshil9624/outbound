@@ -12,6 +12,8 @@ import { MoodHeart } from './MoodHeart';
 
 interface GameOverOverlayProps {
   coins: number;
+  /** Free hearts held (chapter chests): one is used instead of coins. */
+  freeHearts: number;
   canBuyLife: boolean;
   reducedMotion: boolean;
   onBuyLife: () => void;
@@ -30,6 +32,7 @@ const HOME_ICON = <HomeIcon size={18} />;
  */
 export const GameOverOverlay = memo(function GameOverOverlay({
   coins,
+  freeHearts,
   canBuyLife,
   reducedMotion,
   onBuyLife,
@@ -37,7 +40,7 @@ export const GameOverOverlay = memo(function GameOverOverlay({
   onHome,
 }: GameOverOverlayProps) {
   const cost = BOOST_COSTS.life;
-  const short = Math.max(0, cost - coins);
+  const short = freeHearts > 0 ? 0 : Math.max(0, cost - coins);
 
   // Backdrop fades in, the card pops up from slightly small.
   const show = useSharedValue(reducedMotion ? 1 : 0);
@@ -110,10 +113,15 @@ export const GameOverOverlay = memo(function GameOverOverlay({
               size="lg"
               sound={null}
               style={styles.stretch}
-              accessibilityLabel={`Add one heart for ${cost} coins`}
+              accessibilityLabel={freeHearts > 0 ? 'Add one free heart' : `Add one heart for ${cost} coins`}
             />
-            <Animated.View style={[styles.price, priceStyle]} accessibilityLabel={short > 0 ? `You need ${short} more coins` : `Costs ${cost} coins. You have ${coins}`}>
-              {short > 0 ? (
+            <Animated.View
+              style={[styles.price, priceStyle]}
+              accessibilityLabel={freeHearts > 0 ? `Free. You have ${freeHearts} free hearts` : short > 0 ? `You need ${short} more coins` : `Costs ${cost} coins. You have ${coins}`}
+            >
+              {freeHearts > 0 ? (
+                <Text style={styles.priceStrong}>Free · {freeHearts} free {freeHearts === 1 ? 'heart' : 'hearts'} left</Text>
+              ) : short > 0 ? (
                 <>
                   <Text style={[styles.priceText, styles.priceShort]}>Need</Text>
                   <CoinIcon size={16} />

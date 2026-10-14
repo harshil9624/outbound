@@ -36,7 +36,8 @@ const coins = () => usePlayerStore.getState().coins;
 const game = () => useGameStore.getState().game!;
 
 beforeEach(() => {
-  usePlayerStore.setState({ coins: 100 });
+  // No free boosts here: these tests are about coin prices.
+  usePlayerStore.setState({ coins: 100, freeBoosts: { hint: 0, hammer: 0, life: 0 } });
   useGameStore.getState().startLevel(level);
 });
 

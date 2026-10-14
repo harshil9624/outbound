@@ -66,6 +66,18 @@ export interface RewardBreakdown {
 
 export type StarCount = 1 | 2 | 3;
 
+/** The three coin-priced boosts. */
+export type BoostKind = 'hint' | 'hammer' | 'life';
+/** Boosts the player holds for free (won from milestones); used before any coins are spent. */
+export type FreeBoosts = Record<BoostKind, number>;
+
+/** Extra reward for a special level: a chapter chest (master level) or a challenge perk. */
+export interface MilestoneReward {
+  kind: 'chest' | 'perk';
+  coins: number;
+  boosts: FreeBoosts;
+}
+
 export interface LevelResult {
   levelId: number;
   stars: StarCount;
@@ -77,4 +89,6 @@ export interface LevelResult {
   hintsUsed: number;
   /** Hammer smashes: they cost a star like hints, so the win screen shows them too. */
   hammersUsed: number;
+  /** Chapter chest or challenge perk, on a first clear of a master or challenge level. */
+  milestone: MilestoneReward | null;
 }

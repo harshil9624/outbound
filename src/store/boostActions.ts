@@ -1,3 +1,4 @@
+import type { BoostKind } from '@/types';
 import { BOOST_COSTS } from '@/constants/gameConfig';
 import { canAddLife } from '@/game/engine/addLife';
 import { findHint } from '@/game/engine/findHint';
@@ -11,19 +12,31 @@ export type BoostResult = { ok: true } | { ok: false; reason: BoostFailure };
 const ok: BoostResult = { ok: true };
 const fail = (reason: BoostFailure): BoostResult => ({ ok: false, reason });
 
+/** A free boost (from a chapter chest or challenge perk) or enough coins. */
+export function canAfford(kind: BoostKind): boolean {
+  const p = usePlayerStore.getState();
+  return p.freeBoosts[kind] > 0 || p.coins >= BOOST_COSTS[kind];
+}
+
+/** Pays for a boost that has already happened: a free one first, coins otherwise. */
+function pay(kind: BoostKind): void {
+  const p = usePlayerStore.getState();
+  if (!p.useFreeBoost(kind)) p.spendCoins(BOOST_COSTS[kind]);
+}
+
 /**
  * Coin-priced boosts. Each checks every precondition first and charges only once the
- * engine has accepted the action, so a failed boost never costs coins.
+ * engine has accepted the action, so a failed boost never costs coins. A free boost of the
+ * same kind (won from a chapter chest or challenge perk) is always used before coins.
  */
 export function buyHint(): BoostResult {
   const s = useGameStore.getState();
   if (!s.game || s.game.status !== 'playing') return fail('not-playing');
   if (s.hintArrowId && s.game.remainingIds.includes(s.hintArrowId)) return fail('hint-shown');
   if (!findHint(s.game)) return fail('no-target');
-  const player = usePlayerStore.getState();
-  if (player.coins < BOOST_COSTS.hint) return fail('coins');
+  if (!canAfford('hint')) return fail('coins');
   if (!s.showHint()) return fail('no-target');
-  player.spendCoins(BOOST_COSTS.hint);
+  pay('hint');
   return ok;
 }
 
@@ -35,7 +48,7 @@ export function toggleHammer(): BoostResult {
     return ok;
   }
   if (!s.game || s.game.status !== 'playing') return fail('not-playing');
-  if (usePlayerStore.getState().coins < BOOST_COSTS.hammer) return fail('coins');
+  if (!canAfford('hammer')) return fail('coins');
   s.setHammerArmed(true);
   return ok;
 }
@@ -43,13 +56,12 @@ export function toggleHammer(): BoostResult {
 /** With the hammer armed, removes the tapped arrow even if blocked. */
 export function hammerArrow(arrowId: string): BoostResult {
   const s = useGameStore.getState();
-  const player = usePlayerStore.getState();
-  if (player.coins < BOOST_COSTS.hammer) {
+  if (!canAfford('hammer')) {
     s.setHammerArmed(false);
     return fail('coins');
   }
   if (!s.smash(arrowId)) return fail('no-target');
-  player.spendCoins(BOOST_COSTS.hammer);
+  pay('hammer');
   return ok;
 }
 
@@ -58,10 +70,9 @@ export function buyHeart(): BoostResult {
   const s = useGameStore.getState();
   if (!s.game) return fail('not-playing');
   if (!canAddLife(s.game)) return fail(s.game.status === 'won' ? 'not-playing' : 'hearts-full');
-  const player = usePlayerStore.getState();
-  if (player.coins < BOOST_COSTS.life) return fail('coins');
+  if (!canAfford('life')) return fail('coins');
   if (!s.addLife()) return fail('hearts-full');
-  player.spendCoins(BOOST_COSTS.life);
+  pay('life');
   return ok;
 }
 

@@ -48,27 +48,31 @@ const lightColors = {
   boardAlt: '#F2E2C0',
   disabled: palette.sand,
   disabledInk: palette.stone,
+  /** Unselected tab icons in the bottom bar: quiet, but clearly visible on the bar. */
+  navIdle: palette.sand,
 };
 
 export type SemanticColors = { [K in keyof typeof lightColors]: string };
 
 /**
- * Dark mode: warm charcoal desk, dark cards with chalk-cream ink and borders, black shadows.
- * Colour faces keep their brightness and dark text (onColor), so a yellow button reads the same.
+ * Dark mode, "deep navy night": a deep blue desk with lighter blue cards, near-white ink and borders,
+ * and shadows darker than the desk so the hard offset still shows. Colour faces keep their brightness
+ * and dark text (onColor), so yellow, pink and green buttons pop against the blue.
  */
 const darkColors: SemanticColors = {
   ...lightColors,
-  background: '#1F1C18',
-  surface: '#302B25',
-  paper: '#3A342D',
-  ink: '#F4ECDD',
-  inkMuted: '#B9AE98',
-  inverseInk: '#1F1C18',
-  shadow: '#000000',
-  board: '#2B2621',
-  boardAlt: '#352F29',
-  disabled: '#4A433A',
-  disabledInk: '#8C8273',
+  background: '#121A2E',
+  surface: '#1C2742',
+  paper: '#243052',
+  ink: '#F2F4FA',
+  inkMuted: '#9AA6C4',
+  inverseInk: '#121A2E',
+  shadow: '#04070D',
+  board: '#18213A',
+  boardAlt: '#1F2A47',
+  disabled: '#2E3A5C',
+  disabledInk: '#7F8BA8',
+  navIdle: '#8E9AB9',
 };
 
 /** Semantic roles. Components use these, not raw palette values. Updated in place on a theme switch. */

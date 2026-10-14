@@ -13,6 +13,7 @@ import { usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { BrutalistButton, Screen } from '@/components/ui';
 import { CoinReward } from '@/components/win/CoinReward';
+import { MilestoneCard } from '@/components/win/MilestoneCard';
 import { WinInfo } from '@/components/win/WinInfo';
 import { NextLevelButton } from '@/components/win/NextLevelButton';
 import { StarRating } from '@/components/win/StarRating';
@@ -135,6 +136,10 @@ export default function WinRoute() {
           </Animated.Text>
           {best > result.stars ? <Text style={styles.best}>Your best: {'★'.repeat(best)} is kept</Text> : null}
           <CoinReward amount={result.reward.total} animate={!reducedMotion} />
+          {/* Master levels open a chapter chest; challenge levels give a perk (first clears only). */}
+          {result.milestone ? (
+            <MilestoneCard milestone={result.milestone} delayMs={PRAISE_DELAY_MS + 400} reducedMotion={reducedMotion} />
+          ) : null}
           <WinInfo
             levelId={result.levelId}
             moves={result.moves}

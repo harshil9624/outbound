@@ -31,7 +31,7 @@ import { BrutalistCard, CoinDisplay, Screen } from '@/components/ui';
 import { Chest, type ChestState } from '@/components/streak/Chest';
 import { DevStreakBox } from '@/components/streak/DevStreakBox';
 import { FlameBuddy, type FlameMood } from '@/components/streak/FlameBuddy';
-import { borderWidths, colors, fontWeights, palette, radii, spacing, textStyles, themed } from '@/theme';
+import { borderWidths, colors, fontWeights, getThemeMode, palette, radii, spacing, textStyles, themed } from '@/theme';
 import { useToday } from '@/hooks/useToday';
 import { withAlpha } from '@/utils/color';
 
@@ -125,6 +125,8 @@ const Hero = memo(function Hero({
   return (
     <BrutalistCard color="surface" shadow="lg" contentStyle={styles.hero}>
       <View style={styles.flameStage}>
+        {/* A soft disc behind the flame gives the hero a focal point (light card: cream; dark: lighter navy). */}
+        <View style={styles.flameGlow} />
         <FlameBuddy count={count} mood={MOOD[status]} size={124} reducedMotion={reducedMotion} />
       </View>
       <Text style={styles.heroTitle} accessibilityRole="header">
@@ -410,6 +412,7 @@ const styles = themed(() => StyleSheet.create({
   hero: { alignItems: 'center', gap: spacing.xs, paddingTop: spacing.lg },
   // Fixed room for a full-grown flame, so the card doesn't change height as the flame grows.
   flameStage: { height: 124 * 1.2, justifyContent: 'flex-end', alignItems: 'center' },
+  flameGlow: { position: 'absolute', bottom: -10, width: 156, height: 156, borderRadius: 78, backgroundColor: colors.paper },
   heroTitle: { ...textStyles.heading, textAlign: 'center', marginTop: spacing.sm },
   heroMessage: { ...textStyles.body, fontWeight: fontWeights.bold, textAlign: 'center' },
   pills: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.sm },
@@ -446,7 +449,11 @@ const styles = themed(() => StyleSheet.create({
   },
   bubblePlayed: { backgroundColor: palette.orange, borderColor: colors.ink },
   bubbleIced: { backgroundColor: '#CFEBFF', borderColor: colors.ink },
-  bubbleToday: { borderColor: colors.ink, borderStyle: 'dashed', backgroundColor: withAlpha(palette.yellow, 0.35) },
+  // A 35% yellow wash is soft on cream but olive on navy: dark mode outlines in yellow over a faint wash.
+  bubbleToday:
+    getThemeMode() === 'dark'
+      ? { borderColor: palette.yellow, borderStyle: 'dashed', backgroundColor: withAlpha(palette.yellow, 0.12) }
+      : { borderColor: colors.ink, borderStyle: 'dashed', backgroundColor: withAlpha(palette.yellow, 0.35) },
   bubbleFuture: { borderStyle: 'dashed', opacity: 0.6 },
   freezeNote: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs },
   freezeNoteText: { ...textStyles.caption, flexShrink: 1 },
@@ -471,7 +478,10 @@ const styles = themed(() => StyleSheet.create({
   },
   stop: { alignItems: 'center', gap: 2, width: 52 },
   stopChest: { padding: 4, borderRadius: 30, borderWidth: borderWidths.regular, borderColor: 'transparent' },
-  stopNext: { borderColor: colors.ink, backgroundColor: withAlpha(palette.yellow, 0.35) },
+  stopNext:
+    getThemeMode() === 'dark'
+      ? { borderColor: palette.yellow, backgroundColor: withAlpha(palette.yellow, 0.12) }
+      : { borderColor: colors.ink, backgroundColor: withAlpha(palette.yellow, 0.35) },
   stopLabel: { ...textStyles.caption, color: colors.ink, fontWeight: fontWeights.heavy },
   faint: { color: withAlpha(colors.ink, 0.4) },
 }));

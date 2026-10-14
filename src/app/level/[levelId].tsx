@@ -98,6 +98,7 @@ export default function LevelRoute() {
         />
       </View>
       <GameControls
+        free={session.freeBoosts}
         canHint={session.canHint}
         canHammer={session.canHammer}
         canBuyLife={session.canBuyLife}
@@ -111,6 +112,7 @@ export default function LevelRoute() {
       {game.status === 'lost' ? (
         <GameOverOverlay
           coins={session.coins}
+          freeHearts={session.freeBoosts.life}
           reducedMotion={reducedMotion}
           canBuyLife={session.canBuyLife}
           onBuyLife={session.onBuyLife}

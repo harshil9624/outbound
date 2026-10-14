@@ -53,8 +53,12 @@ export const ContinuePanel = memo(function ContinuePanel({ node, level, lockedNo
         ) : (
           <View style={styles.metaRow}>
             <Text style={styles.meta}>
-              {level.arrows.length} arrows · {DIFFICULTY_LABEL[level.difficulty]}
+              {DIFFICULTY_LABEL[level.difficulty]}
             </Text>
+            {/* What beating it for the first time earns (see game/progression/milestones). */}
+            {!done && (node.kind === 'master' || node.kind === 'challenge') ? (
+              <Text style={styles.reward}>{node.kind === 'master' ? '· Chapter chest' : '· Free hammer'}</Text>
+            ) : null}
             {done ? (
               <View style={styles.stars}>
                 {[1, 2, 3].map((i) => (
@@ -98,6 +102,7 @@ const styles = themed(() => StyleSheet.create({
   eyebrow: { ...textStyles.caption, letterSpacing: 1.2 },
   title: { fontSize: 20, fontWeight: fontWeights.heavy, color: colors.ink },
   metaRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, flexWrap: 'wrap' },
+  reward: { ...textStyles.caption, color: colors.ink, fontWeight: '900' },
   meta: { ...textStyles.caption, color: colors.inkMuted },
   stars: { flexDirection: 'row', gap: 1 },
 }));

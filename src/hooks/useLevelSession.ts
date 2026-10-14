@@ -47,6 +47,7 @@ export function useLevelSession(levelId: number, onWin: () => void) {
     })),
   );
   const coins = usePlayerStore((s) => s.coins);
+  const freeBoosts = usePlayerStore((s) => s.freeBoosts);
   // Until the store has this level's session, show the one built above.
   const game = storeGame && storeGame.levelId === levelId ? storeGame : initialGame;
 
@@ -158,9 +159,10 @@ export function useLevelSession(levelId: number, onWin: () => void) {
     bump,
     hammerArmed,
     // Visual only: buttons stay tappable and explain themselves via `notice`.
-    canHint: playing && !hintVisible && coins >= BOOST_COSTS.hint,
-    canHammer: playing && (hammerArmed || coins >= BOOST_COSTS.hammer),
-    canBuyLife: !!game && canAddLife(game) && coins >= BOOST_COSTS.life,
+    freeBoosts,
+    canHint: playing && !hintVisible && (freeBoosts.hint > 0 || coins >= BOOST_COSTS.hint),
+    canHammer: playing && (hammerArmed || freeBoosts.hammer > 0 || coins >= BOOST_COSTS.hammer),
+    canBuyLife: !!game && canAddLife(game) && (freeBoosts.life > 0 || coins >= BOOST_COSTS.life),
     notice,
     coach,
     interactive: playing,

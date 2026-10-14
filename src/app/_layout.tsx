@@ -1,10 +1,5 @@
 import { useEffect } from 'react';
 import { useFonts } from 'expo-font';
-import { LilitaOne_400Regular } from '@expo-google-fonts/lilita-one/400Regular';
-import { Nunito_600SemiBold } from '@expo-google-fonts/nunito/600SemiBold';
-import { Nunito_700Bold } from '@expo-google-fonts/nunito/700Bold';
-import { Nunito_800ExtraBold } from '@expo-google-fonts/nunito/800ExtraBold';
-import { Nunito_900Black } from '@expo-google-fonts/nunito/900Black';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
@@ -21,11 +16,11 @@ export default function RootLayout() {
   const themeMode = useThemeMode();
   // Bundled with the app, so this resolves in a few frames. Keys must match theme/typography fonts.
   const [fontsLoaded, fontError] = useFonts({
-    LilitaOne_400Regular,
-    Nunito_600SemiBold,
-    Nunito_700Bold,
-    Nunito_800ExtraBold,
-    Nunito_900Black,
+    LilitaOne: require('../../assets/fonts/LilitaOne-Regular.ttf'),
+    'Nunito-SemiBold': require('../../assets/fonts/Nunito-SemiBold.ttf'),
+    'Nunito-Bold': require('../../assets/fonts/Nunito-Bold.ttf'),
+    'Nunito-ExtraBold': require('../../assets/fonts/Nunito-ExtraBold.ttf'),
+    'Nunito-Black': require('../../assets/fonts/Nunito-Black.ttf'),
   });
   // On a load error, carry on: text falls back to the system font rather than a blank app.
   if (!fontsLoaded && !fontError) return null;

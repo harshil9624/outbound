@@ -86,8 +86,9 @@ export default function HomeRoute() {
         <View style={styles.topBar}>
           {/* Greeting only: the name and avatar are edited in Settings (bottom tab), not from here. */}
           <View style={styles.profile} accessible accessibilityLabel={`${greeting(today.hour)}, ${p.name}`}>
+            {/* The face (ears and pointer included) reaches ~0.48× its size from the centre: 44 fits inside this 52 circle's border. */}
             <View style={styles.avatar}>
-              <AnimalFace animal={p.avatar} color={arrowColors[ANIMAL_COLORS[p.avatar]]} dir={{ x: 1, y: 0 }} mood="happy" size={54} />
+              <AnimalFace animal={p.avatar} color={arrowColors[ANIMAL_COLORS[p.avatar]]} dir={{ x: 1, y: 0 }} mood="happy" size={44} />
             </View>
             <View style={styles.hello}>
               <Text style={styles.helloSmall}>{greeting(today.hour)},</Text>

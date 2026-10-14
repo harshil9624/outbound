@@ -1,12 +1,15 @@
 import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { BulbIcon, HammerIcon, HeartIcon, RestartIcon } from '@/components/icons';
+import type { FreeBoosts } from '@/types';
 import { BOOST_COSTS } from '@/constants/gameConfig';
 import { spacing, themed } from '@/theme';
 import { BoostButton } from './BoostButton';
 import { BoostNotice } from './BoostNotice';
 
 interface GameControlsProps {
+  /** Free boosts held (chapter chests, challenge perks): shown on their buttons, used before coins. */
+  free: FreeBoosts;
   canHint: boolean;
   canHammer: boolean;
   canBuyLife: boolean;
@@ -27,6 +30,7 @@ const HEART_ICON = <HeartIcon size={30} />;
 
 /** Restart is free; Hint, Hammer and +1 Heart cost coins and disable when unaffordable. */
 export const GameControls = memo(function GameControls({
+  free,
   canHint,
   canHammer,
   canBuyLife,
@@ -45,6 +49,7 @@ export const GameControls = memo(function GameControls({
         icon={HINT_ICON}
         label="HINT"
         cost={BOOST_COSTS.hint}
+        free={free.hint}
         color="primary"
         disabled={!canHint}
         sound={null}
@@ -54,6 +59,7 @@ export const GameControls = memo(function GameControls({
         icon={HAMMER_ICON}
         label="HAMMER"
         cost={BOOST_COSTS.hammer}
+        free={free.hammer}
         color="info"
         disabled={!canHammer}
         active={hammerArmed}
@@ -64,6 +70,7 @@ export const GameControls = memo(function GameControls({
         icon={HEART_ICON}
         label="+1 HEART"
         cost={BOOST_COSTS.life}
+        free={free.life}
         color="accent"
         disabled={!canBuyLife}
         sound={null}

@@ -12,14 +12,12 @@
     ],
     "backgroundColor": "#FFF7E8",
     "android": {
-      "package": "com.yourstudio.outbound",
+      "package": "com.arrowzing.arrowmigos",
       "versionCode": 1,
       "edgeToEdgeEnabled": true,
-      "splash": {
-        "backgroundColor": "#FFF7E8",
-        "dark": {
-          "backgroundColor": "#1F1C18"
-        }
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/adaptive-icon.png",
+        "backgroundColor": "#FFFFFF"
       }
     },
     "plugins": [
@@ -30,10 +28,24 @@
           "microphonePermission": false,
           "recordAudioAndroid": false
         }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/images/logo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#FFF7E8",
+          "dark": {
+            "image": "./assets/images/logo.png",
+            "backgroundColor": "#121A2E"
+          }
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true
-    }
+    },
+    "icon": "./assets/images/icon.png"
   }
 }

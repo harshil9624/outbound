@@ -66,7 +66,7 @@ export function BottomNav({ state, navigation }: BottomTabBarProps) {
                         pressed && styles.bubblePressed,
                       ]}
                     >
-                      <spec.Icon size={ICON} color={focused ? palette.white : colors.disabled} />
+                      <spec.Icon size={ICON} color={focused ? palette.white : colors.navIdle} />
                     </View>
                     <Text style={[styles.label, focused && styles.labelActive]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
                       {spec.label}
