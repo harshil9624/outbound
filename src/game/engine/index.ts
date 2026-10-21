@@ -8,6 +8,5 @@ export * from './undoMove';
 export * from './findHint';
 export * from './checkWin';
 export * from './calculateStars';
-export * from './calculateReward';
 export * from './smashArrow';
 export * from './addLife';

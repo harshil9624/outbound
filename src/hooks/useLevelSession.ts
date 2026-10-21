@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { playSound } from '@/audio/sounds';
 import { HAMMER_IMPACT_MS } from '@/constants/animation';
-import { BOOST_COSTS } from '@/constants/gameConfig';
+import { BOOST_COSTS } from '@/economy/config';
 import { canAddLife } from '@/game/engine/addLife';
 import { createGameState } from '@/game/engine/createGameState';
 import { findHint } from '@/game/engine/findHint';
@@ -14,6 +14,7 @@ import { BOOST_FAILURE_TEXT, buyHeart, buyHint, hammerArrow, toggleHammer, type 
 import { useGameStore } from '@/store/gameStore';
 import { usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
+import { toDayKey } from '@/utils/date';
 import { vibrateBlocked } from '@/utils/haptics';
 
 /**
@@ -78,7 +79,8 @@ export function useLevelSession(levelId: number, onWin: () => void) {
     if (s.game.status !== 'won' || s.exitingIds.length > 0) return;
     finalized.current = true;
     const player = usePlayerStore.getState();
-    const result = buildLevelResult(s.game, { isFirstClear: !player.completedLevels.includes(levelId) });
+    // Shown from the same saved flags the store pays from (economy/rewards), so screen = payout.
+    const result = buildLevelResult(s.game, { isFirstClear: !player.completedLevels.includes(levelId), ledger: player, today: toDayKey() });
     player.applyLevelResult(result, nextMainLevel(levelId, levelProvider.hasLevel));
     s.setLastResult(result);
     if (coachOn) player.markTutorialDone();

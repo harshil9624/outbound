@@ -1,4 +1,9 @@
 import { addDays, daysBetween } from '../../utils/date';
+import { FREEZE_EVERY_DAYS, STREAK_CHESTS } from '../../economy/config';
+
+/** Amounts live in economy/config; re-exported here for the screens that already import them. */
+export { FREEZE_EVERY_DAYS };
+export const STREAK_MILESTONES = STREAK_CHESTS;
 
 export interface StreakState {
   count: number;
@@ -11,8 +16,6 @@ export interface StreakState {
   frozenDays?: string[];
 }
 
-/** One free freeze per this many days. */
-export const FREEZE_EVERY_DAYS = 7;
 
 /** A freeze can cover `day` if none was used in the week before it. */
 function freezeCovers(streak: StreakState, day: string): boolean {
@@ -95,21 +98,6 @@ export function getStreakDays(streak: StreakState, today: string, windowDays = 7
     return { day, played: back >= 0 && back < active };
   });
 }
-
-/**
- * Treasure chests for reaching a streak length (paid once each, based on the best streak). Close
- * together so a child always has one within reach; a bigger one at a week and at a month.
- */
-export const STREAK_MILESTONES: readonly { days: number; coins: number }[] = [
-  { days: 2, coins: 10 },
-  { days: 3, coins: 15 },
-  { days: 5, coins: 25 },
-  { days: 7, coins: 50 },
-  { days: 10, coins: 60 },
-  { days: 14, coins: 100 },
-  { days: 21, coins: 150 },
-  { days: 30, coins: 250 },
-];
 
 /** The week (Sunday first) that contains `today`, as day keys. */
 export function weekOf(today: string): string[] {

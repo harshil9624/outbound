@@ -2,7 +2,7 @@ import { memo } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { BulbIcon, HammerIcon, HeartIcon, RestartIcon } from '@/components/icons';
 import type { FreeBoosts } from '@/types';
-import { BOOST_COSTS } from '@/constants/gameConfig';
+import { BOOST_COSTS } from '@/economy/config';
 import { spacing, themed } from '@/theme';
 import { BoostButton } from './BoostButton';
 import { BoostNotice } from './BoostNotice';

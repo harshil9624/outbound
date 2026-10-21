@@ -18,7 +18,7 @@ const ICONS: Record<BoostKind, ReactNode> = {
 };
 
 /**
- * The extra reward for a master level (chapter chest) or challenge level (perk): the chest pops
+ * The bonus chest on every 10th level (economy/config LEVEL_CHEST): the chest pops
  * in after the stars, with a chip per reward. One plain animated style (no layout animation).
  */
 export const MilestoneCard = memo(function MilestoneCard({
@@ -39,7 +39,6 @@ export const MilestoneCard = memo(function MilestoneCard({
   }, [delayMs, reducedMotion, pop]);
   const style = useAnimatedStyle(() => ({ opacity: Math.min(1, pop.value * 2), transform: [{ scale: pop.value }] }));
 
-  const chest = milestone.kind === 'chest';
   const items = boostList(milestone.boosts);
   return (
     <Animated.View style={[styles.wrap, style]} accessible accessibilityLabel={describe(milestone)}>
@@ -48,7 +47,7 @@ export const MilestoneCard = memo(function MilestoneCard({
           <Chest state="open" size={64} />
           <View style={styles.text}>
             <Text style={styles.title} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75}>
-              {chest ? 'Chapter chest!' : 'Challenge perk!'}
+              Bonus chest!
             </Text>
             <View style={styles.chips}>
               {milestone.coins > 0 ? (
@@ -76,7 +75,7 @@ export const MilestoneCard = memo(function MilestoneCard({
 
 function describe(m: MilestoneReward): string {
   const parts = [m.coins > 0 ? `${m.coins} coins` : null, ...boostList(m.boosts).map(({ kind, count }) => `${count} free ${LABELS[kind][count === 1 ? 0 : 1].toLowerCase()}`)];
-  return `${m.kind === 'chest' ? 'Chapter chest' : 'Challenge perk'}: ${parts.filter(Boolean).join(', ')}`;
+  return `Bonus chest: ${parts.filter(Boolean).join(', ')}`;
 }
 
 const styles = themed(() =>

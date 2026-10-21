@@ -20,7 +20,7 @@ mock.module('react-native-mmkv', () => ({
 const { useGameStore } = await import('../src/store/gameStore');
 const { usePlayerStore } = await import('../src/store/playerStore');
 const { buyHeart, buyHint, hammerArrow, toggleHammer } = await import('../src/store/boostActions');
-const { BOOST_COSTS } = await import('../src/constants/gameConfig');
+const { BOOST_COSTS } = await import('../src/economy/config');
 const { arrow } = await import('../src/game/levels/authoring');
 
 // a exits right freely; b points up into a (blocked until a leaves).

@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, Share, StyleSheet, TextInput, View } from 'react-native';
 import { Text } from '@/components/ui/Text';
 import Constants from 'expo-constants';
@@ -7,6 +7,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { playSound } from '@/audio/sounds';
 import { ANIMAL_COLORS, AVATARS } from '@/constants/animals';
 import { APP_DESCRIPTION, APP_DISPLAY_NAME } from '@/constants/app';
+import { DEV_COIN_GRANTS } from '@/economy/config';
 import { levelProvider } from '@/game/levels/levelProvider';
 import { MAX_NAME_LENGTH, usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
@@ -37,13 +38,6 @@ export default function SettingsRoute() {
     })),
   );
 
-  // Hidden developer tools: not saved, so they're gone after the app restarts.
-  const [devUnlocked, setDevUnlocked] = useState(false);
-  const versionTaps = useRef(0);
-  const onVersionTap = useCallback(() => {
-    versionTaps.current += 1;
-    if (versionTaps.current >= 7) setDevUnlocked(true);
-  }, []);
 
   return (
     <Screen edges={['top', 'left', 'right']} style={styles.screen}>
@@ -84,14 +78,12 @@ export default function SettingsRoute() {
 
         <Section title="About">
           <Row label={APP_DISPLAY_NAME} hint={APP_DESCRIPTION}>
-            {/* Seven taps on the version opens the developer tools in any build (testers' APKs too). */}
-            <Pressable onPress={onVersionTap} hitSlop={8} accessibilityRole="text">
-              <Text style={styles.version}>v{Constants.expoConfig?.version ?? '—'}</Text>
-            </Pressable>
+            <Text style={styles.version}>v{Constants.expoConfig?.version ?? '—'}</Text>
           </Row>
         </Section>
 
-        {__DEV__ || devUnlocked ? <DevTools /> : null}
+        {/* Testing tools (coins, any level, unlock all) exist in development builds only: never in a release. */}
+        {__DEV__ ? <DevTools /> : null}
       </ScrollView>
     </Screen>
   );
@@ -290,7 +282,7 @@ const ResetProgress = memo(function ResetProgress() {
 
 /**
  * Testing tools: coins for boosts, jump to any level (the last one in a tap), unlock the whole map.
- * Shown in development builds, or after seven taps on the version number in any build.
+ * Development builds only (__DEV__): release builds never include them.
  */
 const DevTools = memo(function DevTools() {
   const router = useRouter();
@@ -313,8 +305,9 @@ const DevTools = memo(function DevTools() {
       </View>
       <Text style={textStyles.caption}>Testing tools</Text>
       <View style={styles.devButtons}>
-        <BrutalistButton label="+100" onPress={() => add(100)} color="primary" size="sm" sound={null} />
-        <BrutalistButton label="+1000" onPress={() => add(1000)} color="primary" size="sm" sound={null} />
+        {DEV_COIN_GRANTS.map((amount) => (
+          <BrutalistButton key={amount} label={`+${amount}`} onPress={() => add(amount)} color="primary" size="sm" sound={null} />
+        ))}
       </View>
       <View style={styles.devHeader}>
         <Text style={textStyles.subheading}>Play any level</Text>

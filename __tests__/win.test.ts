@@ -9,6 +9,10 @@ import { solveLevel } from '../src/game/validation/solveLevel';
 import { MAIN_ROUTE } from '../src/game/journey/progress';
 import type { PlayerProgress } from '../src/game/journey/types';
 import { winNextStep } from '../src/game/session/winNextStep';
+import type { RewardLedger } from '../src/economy/rewards';
+
+/** A player who has been paid nothing yet. */
+const NEW_LEDGER: RewardLedger = { paidStars: {}, chestsClaimed: [], lastDailyBonusDay: null, streak: { count: 0, best: 0, lastPlayedDay: null } };
 
 const all = () => true;
 const upTo = (n: number) => (id: number) => id <= n;
@@ -71,7 +75,7 @@ describe('win screen: every number on it is a real number', () => {
   it('a level played to the win through the engine', () => {
     let state = createGameState(level01);
     for (const id of solveLevel(level01).order) state = processArrowTap(state, id).state;
-    const result = buildLevelResult(state, { isFirstClear: true });
+    const result = buildLevelResult(state, { isFirstClear: true, ledger: NEW_LEDGER, today: '2026-10-21' });
     for (const k of counters) expect(Number.isFinite(result[k])).toBe(true);
     expect(result.hammersUsed).toBe(0);
     expect(result.stars).toBe(3);
@@ -80,7 +84,7 @@ describe('win screen: every number on it is a real number', () => {
   it('a level cleared with the hammer counts it, and it shows as help', () => {
     let state = createGameState(level01);
     for (const id of [...state.arrowOrder]) state = smashArrow(state, id) ?? state;
-    const result = buildLevelResult(state, { isFirstClear: true });
+    const result = buildLevelResult(state, { isFirstClear: true, ledger: NEW_LEDGER, today: '2026-10-21' });
     for (const k of counters) expect(Number.isFinite(result[k])).toBe(true);
     expect(result.hammersUsed).toBe(level01.arrows.length);
     expect(result.hintsUsed + result.hammersUsed).toBeGreaterThan(0);

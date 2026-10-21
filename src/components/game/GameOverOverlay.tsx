@@ -4,7 +4,7 @@ import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withS
 import { playSound } from '@/audio/sounds';
 import { Text } from '@/components/ui/Text';
 import { CoinIcon, HeartIcon, HomeIcon, RestartIcon } from '@/components/icons';
-import { BOOST_COSTS } from '@/constants/gameConfig';
+import { BOOST_COSTS } from '@/economy/config';
 import { BrutalistButton } from '@/components/ui/BrutalistButton';
 import { BrutalistCard } from '@/components/ui/BrutalistCard';
 import { MAX_FONT_SCALE, borderWidths, colors, fontWeights, palette, spacing, textStyles, themed } from '@/theme';

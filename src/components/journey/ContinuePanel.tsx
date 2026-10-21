@@ -6,6 +6,7 @@ import type { MapNode } from '@/game/journey/types';
 import { StarIcon } from '@/components/icons';
 import { BrutalistButton } from '@/components/ui/BrutalistButton';
 import { borderWidths, colors, fontWeights, palette, spacing, textStyles, themed } from '@/theme';
+import { LEVEL_CHEST } from '@/economy/config';
 import { LevelThumbnail } from './LevelThumbnail';
 
 const DIFFICULTY_LABEL: Record<Level['difficulty'], string> = { simple: 'Simple', easy: 'Easy', normal: 'Medium', hard: 'Hard', 'extra-hard': 'Extra Hard' };
@@ -55,10 +56,8 @@ export const ContinuePanel = memo(function ContinuePanel({ node, level, lockedNo
             <Text style={styles.meta}>
               {DIFFICULTY_LABEL[level.difficulty]}
             </Text>
-            {/* What beating it for the first time earns (see game/progression/milestones). */}
-            {!done && (node.kind === 'master' || node.kind === 'challenge') ? (
-              <Text style={styles.reward}>{node.kind === 'master' ? '· Chapter chest' : '· Free hammer'}</Text>
-            ) : null}
+            {/* Every 10th level holds a bonus chest for its first clear (economy/config LEVEL_CHEST). */}
+            {!done && level.id % LEVEL_CHEST.everyLevels === 0 ? <Text style={styles.reward}>· Bonus chest</Text> : null}
             {done ? (
               <View style={styles.stars}>
                 {[1, 2, 3].map((i) => (

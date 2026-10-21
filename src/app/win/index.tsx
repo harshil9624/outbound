@@ -135,7 +135,8 @@ export default function WinRoute() {
             {PRAISE[result.stars]}
           </Animated.Text>
           {best > result.stars ? <Text style={styles.best}>Your best: {'★'.repeat(best)} is kept</Text> : null}
-          <CoinReward amount={result.reward.total} animate={!reducedMotion} />
+          {/* Level coins plus today's streak bonus; a chest shows its own coins below. */}
+          <CoinReward amount={result.reward.total + result.dailyBonus} animate={!reducedMotion} />
           {/* Master levels open a chapter chest; challenge levels give a perk (first clears only). */}
           {result.milestone ? (
             <MilestoneCard milestone={result.milestone} delayMs={PRAISE_DELAY_MS + 400} reducedMotion={reducedMotion} />

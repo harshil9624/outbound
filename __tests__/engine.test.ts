@@ -8,7 +8,6 @@ import { smashArrow } from '../src/game/engine/smashArrow';
 import { addLife, canAddLife } from '../src/game/engine/addLife';
 import { checkWin } from '../src/game/engine/checkWin';
 import { calculateStars } from '../src/game/engine/calculateStars';
-import { calculateReward } from '../src/game/engine/calculateReward';
 import { computeBoardLayout, cellCenterPx } from '../src/game/layout/boardLayout';
 import { hitTestArrow } from '../src/game/layout/hitTest';
 import { buildOccupancy } from '../src/game/engine/occupancy';
@@ -107,12 +106,6 @@ describe('stars + reward', () => {
     expect(calculateStars({ mistakes: 1, hintsUsed: 1 })).toBe(2);
     expect(calculateStars({ mistakes: 3, hintsUsed: 0 })).toBe(1);
     expect(calculateStars({ mistakes: 0, hintsUsed: 0, hammersUsed: 1 })).toBe(2);
-  });
-  it('only first clears pay coins', () => {
-    const first = calculateReward({ difficulty: 'normal', stars: 3, isFirstClear: true });
-    const replay = calculateReward({ difficulty: 'normal', stars: 3, isFirstClear: false });
-    expect(first.total).toBe(8 + 3 * 2);
-    expect(replay.total).toBe(0);
   });
 });
 

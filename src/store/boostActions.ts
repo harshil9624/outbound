@@ -1,5 +1,5 @@
 import type { BoostKind } from '@/types';
-import { BOOST_COSTS } from '@/constants/gameConfig';
+import { BOOST_COSTS } from '@/economy/config';
 import { canAddLife } from '@/game/engine/addLife';
 import { findHint } from '@/game/engine/findHint';
 import { useGameStore } from './gameStore';
