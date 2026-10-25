@@ -22,11 +22,11 @@ export const LEVEL_REWARD_TIERS: readonly { upToLevel: number; base: number }[] 
 export const STAR_MULTIPLIER: Record<StarCount, number> = { 1: 1, 2: 1.25, 3: 1.5 };
 
 /**
- * Boost prices. Raised (from 15 / 40 / 30) along with the bigger level rewards, so a boost still
- * costs about the same number of wins as before: hint ~1.5, heart ~2.5, hammer ~3.5 wins.
+ * Boost prices. A hint costs no more than STARTING_COINS, so a new player can buy one right away;
+ * heart ~2.5 wins, hammer ~3.5 wins.
  */
 export const BOOST_COSTS: Record<BoostKind, number> = {
-  hint: 45,
+  hint: 30,
   hammer: 100,
   life: 75,
 };
