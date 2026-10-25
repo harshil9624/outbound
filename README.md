@@ -205,6 +205,45 @@ bun run android:doctor
 bun run android:prebuild
 ```
 
+### Standalone APK (one command)
+
+```powershell
+bun install
+bun run build:android:apk
+```
+
+This checks the toolchain, runs `expo prebuild` only when `android/` is missing or `app.json` / `package.json` changed since it was generated, runs Gradle `assembleRelease` for arm phones (`armeabi-v7a`, `arm64-v8a`), then verifies the APK and its signature. The JS bundle and assets are inside the APK, so it runs without Metro, Expo Go or a server. No EAS and no backend are needed.
+
+- Output: `android\app\build\outputs\apk\release\app-release.apk`, also copied to `dist\ArrowZing-<version>-<versionCode>.apk` (with `-debugsigned` when signed with the debug key).
+- `--prebuild` forces prebuild; `--all-abis` adds the x86 emulator ABIs: `bun run build:android:apk --all-abis`.
+- A clean build takes about 30 minutes; later builds reuse the Gradle caches.
+
+### Release signing
+
+Without a key, release builds are signed with the **debug key**: fine for testers, rejected by Google Play. `plugins/withReleaseSigning.js` (re-applied on every prebuild) switches to your own upload key when one is configured. Secrets never go into git or into `android/`.
+
+1. Create the key once. Back up the file and both passwords: without them you can never update the app.
+
+   ```powershell
+   mkdir credentials
+   & "$env:JAVA_HOME\bin\keytool" -genkeypair -v -storetype PKCS12 -keystore credentials\upload.jks -alias upload -keyalg RSA -keysize 2048 -validity 10000
+   ```
+
+2. Create `credentials\keystore.properties` (the `credentials/` folder is git-ignored):
+
+   ```properties
+   storeFile=credentials/upload.jks
+   storePassword=YOUR_STORE_PASSWORD
+   keyAlias=upload
+   keyPassword=YOUR_KEY_PASSWORD
+   ```
+
+   Or set `ARROWZING_STORE_FILE`, `ARROWZING_STORE_PASSWORD`, `ARROWZING_KEY_ALIAS` and `ARROWZING_KEY_PASSWORD` as environment variables instead.
+
+3. Build with `bun run build:android:apk`. The summary's "Signed by" line shows your key instead of "Android Debug".
+
+An APK signed with one key cannot install over one signed with another: testers must uninstall the debug-signed build first.
+
 ### Local builds on Windows (Gradle)
 
 | Command | Output |
@@ -240,7 +279,7 @@ Judge performance on a **release** build; development builds are much slower.
 - **EAS local builds (`eas build --local`) do not run on Windows.** EAS CLI only supports local Android builds on macOS or Linux. On this Windows machine, use the Gradle scripts above, which run the same Gradle build. To use `eas build --local`, run it inside WSL2 with a Linux JDK 17 and Android SDK.
 - **EAS cloud builds** work from Windows: `bun run eas:preview` or `bun run eas:production`. The first run asks you to log in to Expo and link the project, which adds a project ID to `app.json`.
 
-> **Release signing is not set up yet.** The generated `android/app/build.gradle` signs release builds with the **debug keystore**. That works for local testing, but such builds cannot be uploaded to Google Play. A release keystore (or EAS Build) still has to be configured.
+> **Release signing:** until `credentials/keystore.properties` exists, release builds use the **debug keystore**. See [Release signing](#release-signing).
 
 Current Android identity (from `app.json` and the generated Gradle config):
 
@@ -252,7 +291,7 @@ Current Android identity (from `app.json` and the generated Gradle config):
 | Orientation | portrait |
 | URL scheme | `outbound` |
 
-This is the final package name: once the app is on Google Play it can never change. App icon: `assets/images/icon.png` (standard) and `assets/images/adaptive-icon.png` (adaptive, on a white background), made from `assets/images/logo-source.png`.
+This is the final package name: once the app is on Google Play it can never change. App icon: `assets/images/icon.png` (standard, 512 px, logo on a white rounded square) and `assets/images/adaptive-icon.png` (adaptive foreground, 432 px, on a `#FFFFFF` background). Prebuild generates every Android density from these two files.
 
 ### Branding
 
@@ -277,6 +316,7 @@ The in-app texts live in [src/constants/app.ts](src/constants/app.ts). Check the
 | `bun run dev` | `expo start --dev-client`: starts Metro for the installed dev build |
 | `bun run android:doctor` | Checks JDK 17, the Android SDK parts, adb and the connected device |
 | `bun run android:prebuild` | Generates or refreshes `android/` from `app.json` (keeps the existing folder) |
+| `bun run build:android:apk` | Standalone release APK: toolchain check, prebuild if needed, Gradle, verification |
 | `bun run android:apk` / `android:apk:debug` / `android:aab` | Local Gradle builds (release APK, debug APK, release bundle) |
 | `bun run android:release:device` | Builds a release build and installs it on the connected phone |
 | `bun run android:clean` | Gradle clean |

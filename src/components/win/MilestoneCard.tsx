@@ -18,7 +18,7 @@ const ICONS: Record<BoostKind, ReactNode> = {
 };
 
 /**
- * The bonus chest on every 10th level (economy/config LEVEL_CHEST): the chest pops
+ * The chapter-completion chest (economy/config CHAPTER_REWARD): the chest pops
  * in after the stars, with a chip per reward. One plain animated style (no layout animation).
  */
 export const MilestoneCard = memo(function MilestoneCard({

@@ -11,4 +11,5 @@ expo-env.d.ts
 *.aab
 *.jks
 *.keystore
+credentials/
 .env*.local

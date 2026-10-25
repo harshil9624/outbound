@@ -1,21 +1,26 @@
-import { useCallback, useMemo, useRef, type ReactNode } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import Animated, { Easing, useAnimatedStyle, useSharedValue, withSequence, withSpring, withTiming } from 'react-native-reanimated';
 import { Text } from '@/components/ui/Text';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useShallow } from 'zustand/react/shallow';
 import { APP_NAME } from '@/constants/app';
-import { ANIMAL_COLORS } from '@/constants/animals';
+import { ANIMAL_COLORS, type FaceAnimal } from '@/constants/animals';
 import { chapterOfLevel, currentLevelId, hasUnmadeLevels } from '@/game/journey/progress';
 import { CHAPTERS } from '@/game/journey/chapters';
 import { getActiveStreak } from '@/game/progression/streak';
 import { levelProvider } from '@/game/levels/levelProvider';
 import { usePlayerStore } from '@/store/playerStore';
+import { useSettingsStore } from '@/store/settingsStore';
+import { playSound } from '@/audio/sounds';
 import { AnimalFace } from '@/components/game/AnimalFace';
-import { FlameIcon, RouteIcon, StarIcon } from '@/components/icons';
+import { RouteIcon, StarIcon } from '@/components/icons';
 import { LevelThumbnail } from '@/components/journey/LevelThumbnail';
+import { Chest } from '@/components/streak/Chest';
+import { FlameBuddy } from '@/components/streak/FlameBuddy';
 import { BrutalistButton, CoinDisplay, Decorations, OnColor, Screen } from '@/components/ui';
 import { HardShadow } from '@/components/ui/HardShadow';
-import { arrowColors, borderWidths, colors, fontWeights, palette, spacing, textStyles, themed } from '@/theme';
+import { arrowColors, borderWidths, colors, fontWeights, palette, radii, spacing, textStyles, themed } from '@/theme';
 import { useToday } from '@/hooks/useToday';
 
 function greeting(hour: number): string {
@@ -26,6 +31,8 @@ function greeting(hour: number): string {
 }
 
 const MORE_LEVELS_COMING = hasUnmadeLevels(levelProvider.hasLevel);
+/** The chapter animal's disc in the card band. */
+const MASCOT = 52;
 
 export default function HomeRoute() {
   const router = useRouter();
@@ -38,8 +45,10 @@ export default function HomeRoute() {
       unlockedLevel: s.unlockedLevel,
       completedLevels: s.completedLevels,
       stars: s.stars,
+      chestsClaimed: s.chestsClaimed,
     })),
   );
+  const reducedMotion = useSettingsStore((s) => s.reducedMotion);
 
   // Re-read on focus and on returning to the app: the tab stays mounted overnight.
   const today = useToday();
@@ -51,6 +60,12 @@ export default function HomeRoute() {
   const chapterDone = chapter ? chapter.levelIds.filter((id) => p.completedLevels.includes(id)).length : 0;
   const chapterTotal = chapter ? chapter.levelIds.filter((id) => levelProvider.hasLevel(id)).length : 0;
   const color = chapter ? arrowColors[chapter.color] : colors.primary;
+  // Levels left until the chapter chest (paid on the first clear of the chapter's last level).
+  const chestLevel = chapter ? chapter.levelIds[chapter.levelIds.length - 1] : null;
+  const levelsToChest =
+    chapter && chestLevel !== null && levelProvider.hasLevel(chestLevel) && !p.chestsClaimed.includes(chestLevel)
+      ? chapter.levelIds.filter((id) => levelProvider.hasLevel(id) && !p.completedLevels.includes(id)).length
+      : 0;
   // Only levels that exist count: saved progress for a level that was removed or renumbered
   // must not show "9/8 levels".
   const { clearedCount, totalStars } = useMemo(() => {
@@ -110,13 +125,14 @@ export default function HomeRoute() {
 
         <HardShadow size="lg">
           <View style={styles.continueCard}>
-            <View style={[styles.continueBand, { backgroundColor: color }]}>
+            <View style={[styles.continueBand, chapter && styles.continueBandMascot, { backgroundColor: color }]}>
               <OnColor>
                 <Text style={styles.bandEyebrow}>{chapter ? `CHAPTER ${chapterNumber}` : 'JOURNEY'}</Text>
                 <Text style={styles.bandTitle} numberOfLines={1}>
                   {chapter ? chapter.title : 'All caught up'}
                 </Text>
               </OnColor>
+              {chapter ? <ChapterMascot animal={chapter.mascot} name={p.name} reducedMotion={reducedMotion} /> : null}
             </View>
             <View style={styles.continueBody}>
               {level ? (
@@ -134,6 +150,14 @@ export default function HomeRoute() {
                     </View>
                     <Text style={styles.progressText}>
                       {chapterDone}/{chapterTotal}
+                    </Text>
+                  </View>
+                ) : null}
+                {levelsToChest > 0 ? (
+                  <View style={styles.chestRow}>
+                    <Chest state="locked" size={22} />
+                    <Text style={styles.chestText}>
+                      {levelsToChest === 1 ? 'Chest on this level!' : `Chest in ${levelsToChest} levels!`}
                     </Text>
                   </View>
                 ) : null}
@@ -169,7 +193,12 @@ export default function HomeRoute() {
           <Tile
             onPress={() => router.navigate('/streak')}
             color={palette.pink}
-            icon={<FlameIcon size={30} color={palette.yellow} />}
+            icon={
+              // The streak's flame buddy, sleepy until today's level is played. Still (no flicker) on Home.
+              <View style={styles.tileFlame}>
+                <FlameBuddy count={Math.max(streak, 1)} mood={playedToday ? 'happy' : 'sleepy'} size={30} reducedMotion />
+              </View>
+            }
             title={streak === 1 ? '1 day' : `${streak} days`}
             detail={playedToday ? 'Streak safe today' : streak > 0 ? 'Play today to keep it' : 'Start a streak'}
             extra={<Text style={styles.tileExtra}>Best {p.streak.best}</Text>}
@@ -179,6 +208,61 @@ export default function HomeRoute() {
     </Screen>
   );
 }
+
+/** What the chapter's animal says when tapped. */
+const MASCOT_CHEERS = ['You can do it!', 'Arrows are fun!', 'High five!', 'Tap PLAY!', 'I believe in you!', 'Hee hee!'];
+const BUBBLE_MS = 2400;
+/** The mascot says hi once per app launch, the first time Home is shown. */
+let greetedThisLaunch = false;
+
+/**
+ * The current chapter's animal sits in the card's colour band and talks in a little bubble:
+ * hello once per launch, and a cheer with a hop each time it's tapped. Nothing animates while idle.
+ */
+const ChapterMascot = memo(function ChapterMascot({ animal, name, reducedMotion }: { animal: FaceAnimal; name: string; reducedMotion: boolean }) {
+  const [bubble, setBubble] = useState<{ text: string; token: number } | null>(null);
+  const say = useCallback((text: string) => setBubble((b) => ({ text, token: (b?.token ?? 0) + 1 })), []);
+  useEffect(() => {
+    if (!bubble) return;
+    const t = setTimeout(() => setBubble(null), BUBBLE_MS);
+    return () => clearTimeout(t);
+  }, [bubble]);
+  useFocusEffect(
+    useCallback(() => {
+      if (greetedThisLaunch) return;
+      greetedThisLaunch = true;
+      say(`Hi ${name}! Let’s play!`);
+    }, [name, say]),
+  );
+
+  const taps = useRef(0);
+  const hop = useSharedValue(0);
+  const onTap = useCallback(() => {
+    say(MASCOT_CHEERS[taps.current++ % MASCOT_CHEERS.length]);
+    playSound('tap');
+    if (!reducedMotion) {
+      hop.value = withSequence(withTiming(1, { duration: 130, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 6, stiffness: 240 }));
+    }
+  }, [say, reducedMotion, hop]);
+  const hopStyle = useAnimatedStyle(() => ({ transform: [{ translateY: hop.value * -10 }, { rotate: `${hop.value * 8}deg` }] }));
+
+  return (
+    <>
+      {bubble ? (
+        <View style={styles.bubble} pointerEvents="none" accessibilityLiveRegion="polite">
+          <Text style={styles.bubbleText} numberOfLines={2}>
+            {bubble.text}
+          </Text>
+        </View>
+      ) : null}
+      <Pressable onPress={onTap} style={styles.mascot} hitSlop={8} accessibilityRole="button" accessibilityLabel={`${animal}, your chapter buddy`}>
+        <Animated.View style={[styles.mascotDisc, hopStyle]} collapsable={false}>
+          <AnimalFace animal={animal} color={arrowColors[ANIMAL_COLORS[animal]]} dir={{ x: -1, y: 0 }} mood="happy" size={40} />
+        </Animated.View>
+      </Pressable>
+    </>
+  );
+});
 
 function Tile({
   onPress,
@@ -257,6 +341,46 @@ const styles = themed(() => StyleSheet.create({
   },
   bandEyebrow: { ...textStyles.caption, color: colors.ink, letterSpacing: 1.2 },
   bandTitle: { fontSize: 24, fontWeight: fontWeights.heavy, color: colors.ink },
+  // Room on the right for the chapter's animal.
+  continueBandMascot: { paddingRight: spacing.lg + MASCOT + spacing.sm },
+  mascot: { position: 'absolute', right: spacing.lg, top: 0, bottom: 0, justifyContent: 'center' },
+  // A white disc, so the animal never blends into a band of its own colour.
+  mascotDisc: {
+    width: MASCOT,
+    height: MASCOT,
+    borderRadius: MASCOT / 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: borderWidths.regular,
+    borderColor: colors.artInk,
+    backgroundColor: palette.white,
+    overflow: 'hidden',
+  },
+  // The speech bubble covers the chapter title for a moment, beside the animal.
+  bubble: {
+    position: 'absolute',
+    right: spacing.lg + MASCOT + spacing.sm,
+    left: spacing.lg,
+    top: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'flex-end',
+  },
+  bubbleText: {
+    ...textStyles.label,
+    color: colors.artInk,
+    backgroundColor: palette.white,
+    borderWidth: borderWidths.thin,
+    borderColor: colors.artInk,
+    borderRadius: radii.md,
+    overflow: 'hidden',
+    paddingVertical: spacing.xs,
+    paddingHorizontal: spacing.sm,
+    textAlign: 'center',
+  },
+  chestRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.xs, marginTop: spacing.xxs },
+  chestText: { ...textStyles.caption, color: colors.ink, fontWeight: fontWeights.heavy, flexShrink: 1 },
+  tileFlame: { height: 36, justifyContent: 'flex-end' },
   continueBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.lg, padding: spacing.lg },
   thumb: { borderWidth: borderWidths.regular, borderColor: colors.ink },
   continueInfo: { flex: 1, minWidth: 0, gap: spacing.xs },

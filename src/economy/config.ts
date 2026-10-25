@@ -7,10 +7,10 @@
  */
 import type { BoostKind, StarCount } from '../types/game';
 
-/** A new player's purse: enough for two hints, so boosts are discovered early. */
-export const STARTING_COINS = 100;
+/** A new player's purse, given once (existing players keep their balance). */
+export const STARTING_COINS = 30;
 
-/** Coins for clearing a level, by level number (the last tier runs to the end of the game). */
+/** Coins for a level's first clear, by level number (the last tier runs to the end of the game). Replays pay nothing. */
 export const LEVEL_REWARD_TIERS: readonly { upToLevel: number; base: number }[] = [
   { upToLevel: 10, base: 10 },
   { upToLevel: 30, base: 15 },
@@ -31,12 +31,10 @@ export const BOOST_COSTS: Record<BoostKind, number> = {
   life: 75,
 };
 
-/** A chest on every 10th level's first clear: coins plus one free boost, the kind rotating. */
-export const LEVEL_CHEST = {
-  everyLevels: 10,
+/** Paid once per chapter, on the first clear of its last level: coins plus free boosts. */
+export const CHAPTER_REWARD = {
   coins: 100,
-  /** Level 10 gives a hammer, 20 a hint, 30 a heart, 40 a hammer again... */
-  boostRotation: ['hammer', 'hint', 'life'] as const satisfies readonly BoostKind[],
+  boosts: { hint: 2, hammer: 1, life: 0 } satisfies Record<BoostKind, number>,
 } as const;
 
 /** Paid on the first level cleared each day: more on every 7th day of a streak. */

@@ -2,8 +2,8 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { BoostKind, FreeBoosts, LevelResult, StarCount } from '@/types';
 import { NO_FREE_BOOSTS, addBoosts } from '@/game/progression/milestones';
-import { LEGACY_V2_STARTER_GRANT, LEVEL_CHEST, STARTING_COINS } from '@/economy/config';
-import { levelRewards } from '@/economy/rewards';
+import { LEGACY_V2_STARTER_GRANT, STARTING_COINS } from '@/economy/config';
+import { isChapterEnd, levelRewards } from '@/economy/rewards';
 import { INITIAL_STREAK, STREAK_MILESTONES, streakDayKeys, type StreakState } from '@/game/progression/streak';
 import { AVATARS, type FaceAnimal } from '@/constants/animals';
 import { STORAGE_KEYS } from '@/storage/storageKeys';
@@ -169,7 +169,7 @@ export const usePlayerStore = create<PlayerStore>()(
     {
       name: STORAGE_KEYS.player,
       storage: zustandStorage,
-      version: 7,
+      version: 8,
       // Persist data only, never actions.
       partialize: (s): PlayerData => ({
         name: s.name,
@@ -208,9 +208,15 @@ export const usePlayerStore = create<PlayerStore>()(
           data = {
             ...data,
             paidStars: { ...data.stars },
-            chestsClaimed: data.completedLevels.filter((id) => id % LEVEL_CHEST.everyLevels === 0),
+            chestsClaimed: data.completedLevels.filter((id) => id % 10 === 0),
             lastDailyBonusDay: data.streak.lastPlayedDay,
           };
+        }
+        // v8 moved the chest to chapter completion: chapters already finished count as paid, so a
+        // replay of their last level pays nothing. Coins and free boosts are left as they are.
+        if (fromVersion < 8) {
+          const ends = data.completedLevels.filter((id) => isChapterEnd(id) && !data.chestsClaimed.includes(id));
+          data = { ...data, chestsClaimed: [...data.chestsClaimed, ...ends] };
         }
         return data;
       },

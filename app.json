@@ -17,8 +17,7 @@
       "edgeToEdgeEnabled": true,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/adaptive-icon.png",
-        "backgroundImage": "./assets/images/adaptive-icon-background.png",
-        "backgroundColor": "#FFD83D"
+        "backgroundColor": "#FFFFFF"
       },
       "blockedPermissions": [
         "android.permission.RECORD_AUDIO",
@@ -50,7 +49,9 @@
             "backgroundColor": "#121A2E"
           }
         }
-      ]
+      ],
+      "expo-asset",
+      "./plugins/withReleaseSigning"
     ],
     "experiments": {
       "typedRoutes": true

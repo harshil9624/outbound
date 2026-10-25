@@ -1,6 +1,6 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Animated, {
   Easing,
   cancelAnimation,
@@ -24,13 +24,15 @@ import {
   weekOf,
   type StreakStatus,
 } from '@/game/progression/streak';
+import { currentLevelId } from '@/game/journey/progress';
+import { levelProvider } from '@/game/levels/levelProvider';
 import { usePlayerStore } from '@/store/playerStore';
 import { useSettingsStore } from '@/store/settingsStore';
 import { CoinIcon, FlameIcon, SnowflakeIcon } from '@/components/icons';
-import { BrutalistCard, CoinDisplay, Screen } from '@/components/ui';
+import { BrutalistButton, BrutalistCard, CoinDisplay, Screen } from '@/components/ui';
 import { Chest, type ChestState } from '@/components/streak/Chest';
 import { DevStreakBox } from '@/components/streak/DevStreakBox';
-import { FlameBuddy, type FlameMood } from '@/components/streak/FlameBuddy';
+import { FLAME_STAGES, FlameBuddy, flameStage, type FlameMood } from '@/components/streak/FlameBuddy';
 import { borderWidths, colors, fontWeights, getThemeMode, palette, radii, spacing, textStyles, themed } from '@/theme';
 import { useToday } from '@/hooks/useToday';
 import { withAlpha } from '@/utils/color';
@@ -48,8 +50,12 @@ export default function StreakRoute() {
       playDays: s.playDays,
       claimed: s.streakRewardsClaimed,
       claim: s.claimStreakReward,
+      unlockedLevel: s.unlockedLevel,
+      completedLevels: s.completedLevels,
+      stars: s.stars,
     })),
   );
+  const router = useRouter();
   const reducedMotion = useSettingsStore((s) => s.reducedMotion);
   // Re-read on focus and on returning to the app: the tab stays mounted overnight.
   const { day: today } = useToday();
@@ -71,6 +77,25 @@ export default function StreakRoute() {
     [claim],
   );
 
+  // Straight into the next level, like Home's PLAY. One level per tap; re-armed when the tab is back in view.
+  const currentId = currentLevelId(p, levelProvider.hasLevel);
+  const opening = useRef(false);
+  useFocusEffect(
+    useCallback(() => {
+      opening.current = false;
+    }, []),
+  );
+  const onPlay = useCallback(() => {
+    if (currentId === null) {
+      router.navigate('/journey');
+      return;
+    }
+    if (opening.current) return;
+    opening.current = true;
+    router.push({ pathname: '/level/[levelId]', params: { levelId: String(currentId) } });
+  }, [router, currentId]);
+  const playLabel = currentId === null ? 'OPEN MAP' : status === 'done' ? 'PLAY MORE' : 'PLAY NOW';
+
   return (
     <Screen edges={['top', 'left', 'right']} style={styles.screen}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
@@ -85,7 +110,10 @@ export default function StreakRoute() {
           status={status}
           freeze={freezeReady(p.streak, today)}
           reducedMotion={reducedMotion}
+          playLabel={playLabel}
+          onPlay={onPlay}
         />
+        <GrowPath count={count} />
         <WeekStrip playDays={p.playDays} frozen={frozen} today={today} />
         <ChestTrail best={p.streak.best} count={count} claimed={p.claimed} onClaim={onClaim} reducedMotion={reducedMotion} />
         {__DEV__ ? <DevStreakBox today={today} /> : null}
@@ -96,19 +124,56 @@ export default function StreakRoute() {
 
 const MOOD: Record<StreakStatus, FlameMood> = { done: 'happy', waiting: 'happy', frozen: 'cold', none: 'sleepy' };
 
+/** What the flame says when it's tapped: short, cheerful words for early readers. */
+const CHEERS: Record<FlameMood, readonly string[]> = {
+  happy: ['You’re on fire!', 'High five!', 'Let’s solve puzzles!', 'Woohoo!', 'You’re a star!', 'That tickles!'],
+  cold: ['Brrr! Warm me up!', 'So chilly! Play a level?', 'Brrr… one level please!'],
+  sleepy: ['Zzz… play to wake me!', 'Yawn… one level please?', 'Zzz… I dream of puzzles!'],
+};
+const CHEER_MS = 2200;
+
 const Hero = memo(function Hero({
   count,
   best,
   status,
   freeze,
   reducedMotion,
+  playLabel,
+  onPlay,
 }: {
   count: number;
   best: number;
   status: StreakStatus;
   freeze: boolean;
   reducedMotion: boolean;
+  playLabel: string;
+  onPlay: () => void;
 }) {
+  const mood = MOOD[status];
+  // Tapping the flame: it hops and says something. The "Tap me!" tag goes once it's been tapped.
+  const [cheer, setCheer] = useState<{ text: string; token: number } | null>(null);
+  const [petted, setPetted] = useState(false);
+  const taps = useRef(0);
+  useEffect(() => {
+    if (!cheer) return;
+    const t = setTimeout(() => setCheer(null), CHEER_MS);
+    return () => clearTimeout(t);
+  }, [cheer]);
+  const hop = useSharedValue(0);
+  const onPet = useCallback(() => {
+    const list = CHEERS[mood];
+    const text = list[taps.current++ % list.length];
+    setCheer((c) => ({ text, token: (c?.token ?? 0) + 1 }));
+    setPetted(true);
+    playSound('tap');
+    if (!reducedMotion) {
+      hop.value = withSequence(withTiming(1, { duration: 140, easing: Easing.out(Easing.quad) }), withSpring(0, { damping: 6, stiffness: 240 }));
+    }
+  }, [mood, reducedMotion, hop]);
+  const hopStyle = useAnimatedStyle(() => ({
+    transform: [{ translateY: hop.value * -18 }, { rotate: `${hop.value * -6}deg` }],
+  }));
+
   // Short words for early readers.
   const title =
     status === 'none' ? (best > 0 ? 'Your flame is sleepy' : 'Light your flame!') : `${count} ${count === 1 ? 'day' : 'days'} in a row!`;
@@ -124,15 +189,33 @@ const Hero = memo(function Hero({
             : 'Clear a level to start your streak.';
   return (
     <BrutalistCard color="surface" shadow="lg" contentStyle={styles.hero}>
-      <View style={styles.flameStage}>
+      <Pressable
+        onPress={onPet}
+        style={styles.flameStage}
+        accessibilityRole="button"
+        accessibilityLabel="Your flame buddy"
+        accessibilityHint="Tap to say hi"
+      >
         {/* A soft disc behind the flame gives the hero a focal point (light card: cream; dark: lighter navy). */}
         <View style={styles.flameGlow} />
-        <FlameBuddy count={count} mood={MOOD[status]} size={124} reducedMotion={reducedMotion} />
-      </View>
+        <Animated.View style={hopStyle} collapsable={false}>
+          <FlameBuddy count={count} mood={mood} size={124} reducedMotion={reducedMotion} />
+        </Animated.View>
+        {!petted ? (
+          <View style={styles.tapTag} pointerEvents="none">
+            <Text style={styles.tapTagText} maxFontSizeMultiplier={1.25}>
+              Tap me!
+            </Text>
+          </View>
+        ) : null}
+      </Pressable>
       <Text style={styles.heroTitle} accessibilityRole="header">
         {title}
       </Text>
-      <Text style={styles.heroMessage}>{message}</Text>
+      {/* The cheer takes the message's place for a moment, so the card never changes height. */}
+      <Text style={[styles.heroMessage, cheer && styles.heroCheer]} accessibilityLiveRegion="polite">
+        {cheer ? `“${cheer.text}”` : message}
+      </Text>
       <View style={styles.pills}>
         <View
           style={[styles.pill, styles.pillFreeze, !freeze && styles.pillOff]}
@@ -148,6 +231,53 @@ const Hero = memo(function Hero({
           </View>
         ) : null}
       </View>
+      <BrutalistButton label={playLabel} onPress={onPlay} color="success" size="md" style={styles.playButton} />
+    </BrutalistCard>
+  );
+});
+
+/**
+ * The flame's growth path: Spark, Flame, Blaze, King. The stage the flame is at now is ringed,
+ * stages still ahead are dim and sleepy, and one line says how many days to the next.
+ * The little flames are still (no flicker), so this card costs nothing while the tab is open.
+ */
+const GrowPath = memo(function GrowPath({ count }: { count: number }) {
+  const now = flameStage(count);
+  const next = FLAME_STAGES.find((st) => count < st.days);
+  const toGo = next ? next.days - count : 0;
+  const hint = !next
+    ? 'Your flame is the King! Keep it burning.'
+    : count <= 0
+      ? `Play today to light a ${next.name}!`
+      : `${toGo} more ${toGo === 1 ? 'day' : 'days'} to grow into a ${next.name}!`;
+  return (
+    <BrutalistCard contentStyle={styles.section}>
+      <Text style={textStyles.subheading}>Grow your flame</Text>
+      <View style={styles.grow}>
+        <View style={styles.growLine} />
+        {FLAME_STAGES.map((st) => {
+          const reached = count >= st.days;
+          return (
+            <View
+              key={st.stage}
+              style={styles.growStep}
+              accessible
+              accessibilityLabel={`${st.name}, day ${st.days}${now === st.stage ? ', your flame now' : reached ? ', reached' : ''}`}
+            >
+              <View style={[styles.growDisc, now === st.stage && styles.growDiscNow, !reached && styles.growLocked]}>
+                <FlameBuddy count={st.days} mood={reached ? 'happy' : 'sleepy'} size={40} reducedMotion />
+              </View>
+              <Text style={[styles.growName, !reached && styles.faint]} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>
+                {st.name}
+              </Text>
+              <Text style={[styles.growDays, !reached && styles.faint]} numberOfLines={1}>
+                Day {st.days}
+              </Text>
+            </View>
+          );
+        })}
+      </View>
+      <Text style={styles.growHint}>{hint}</Text>
     </BrutalistCard>
   );
 });
@@ -411,10 +541,26 @@ const styles = themed(() => StyleSheet.create({
 
   hero: { alignItems: 'center', gap: spacing.xs, paddingTop: spacing.lg },
   // Fixed room for a full-grown flame, so the card doesn't change height as the flame grows.
-  flameStage: { height: 124 * 1.2, justifyContent: 'flex-end', alignItems: 'center' },
+  flameStage: { width: 156, height: 124 * 1.2, justifyContent: 'flex-end', alignItems: 'center' },
+  // A little sign leaning on the flame, so kids know it can be tapped.
+  tapTag: {
+    position: 'absolute',
+    top: 2,
+    right: -30,
+    paddingVertical: 2,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
+    borderWidth: borderWidths.thin,
+    borderColor: colors.artInk,
+    backgroundColor: palette.yellow,
+    transform: [{ rotate: '8deg' }],
+  },
+  tapTagText: { ...textStyles.caption, color: colors.artInk, fontWeight: fontWeights.heavy },
   flameGlow: { position: 'absolute', bottom: -10, width: 156, height: 156, borderRadius: 78, backgroundColor: colors.paper },
   heroTitle: { ...textStyles.heading, textAlign: 'center', marginTop: spacing.sm },
   heroMessage: { ...textStyles.body, fontWeight: fontWeights.bold, textAlign: 'center' },
+  heroCheer: { color: colors.ink, fontWeight: fontWeights.heavy },
+  playButton: { alignSelf: 'stretch', marginTop: spacing.md },
   pills: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: spacing.sm, marginTop: spacing.sm },
   pill: {
     flexDirection: 'row',
@@ -432,6 +578,37 @@ const styles = themed(() => StyleSheet.create({
   pillText: { ...textStyles.caption, color: colors.ink, fontWeight: fontWeights.heavy },
 
   section: { gap: spacing.md },
+
+  grow: { flexDirection: 'row', justifyContent: 'space-between' },
+  // Joins the four discs through their centres (discs are 60 tall).
+  growLine: {
+    position: 'absolute',
+    left: '12%',
+    right: '12%',
+    top: 30,
+    borderTopWidth: borderWidths.regular,
+    borderStyle: 'dashed',
+    borderColor: withAlpha(colors.ink, 0.3),
+  },
+  growStep: { flex: 1, minWidth: 0, alignItems: 'center', gap: 2 },
+  growDisc: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: borderWidths.regular,
+    borderColor: withAlpha(colors.ink, 0.25),
+    backgroundColor: colors.paper,
+  },
+  growDiscNow:
+    getThemeMode() === 'dark'
+      ? { borderColor: palette.yellow, backgroundColor: withAlpha(palette.yellow, 0.12) }
+      : { borderColor: colors.ink, backgroundColor: withAlpha(palette.yellow, 0.35) },
+  growLocked: { opacity: 0.45 },
+  growName: { ...textStyles.label, color: colors.ink, marginTop: spacing.xxs },
+  growDays: { ...textStyles.caption, fontWeight: fontWeights.heavy },
+  growHint: { ...textStyles.body, fontWeight: fontWeights.bold, textAlign: 'center' },
   week: { flexDirection: 'row', justifyContent: 'space-between', gap: 2 },
   dayCol: { flex: 1, maxWidth: BUBBLE + 6, alignItems: 'center', gap: spacing.xs },
   weekday: { ...textStyles.caption, fontWeight: fontWeights.heavy },

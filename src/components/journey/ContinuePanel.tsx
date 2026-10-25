@@ -6,7 +6,7 @@ import type { MapNode } from '@/game/journey/types';
 import { StarIcon } from '@/components/icons';
 import { BrutalistButton } from '@/components/ui/BrutalistButton';
 import { borderWidths, colors, fontWeights, palette, spacing, textStyles, themed } from '@/theme';
-import { LEVEL_CHEST } from '@/economy/config';
+import { isChapterEnd } from '@/economy/rewards';
 import { LevelThumbnail } from './LevelThumbnail';
 
 const DIFFICULTY_LABEL: Record<Level['difficulty'], string> = { simple: 'Simple', easy: 'Easy', normal: 'Medium', hard: 'Hard', 'extra-hard': 'Extra Hard' };
@@ -56,8 +56,8 @@ export const ContinuePanel = memo(function ContinuePanel({ node, level, lockedNo
             <Text style={styles.meta}>
               {DIFFICULTY_LABEL[level.difficulty]}
             </Text>
-            {/* Every 10th level holds a bonus chest for its first clear (economy/config LEVEL_CHEST). */}
-            {!done && level.id % LEVEL_CHEST.everyLevels === 0 ? <Text style={styles.reward}>· Bonus chest</Text> : null}
+            {/* A chapter's last level holds its chest, paid on the first clear (economy/config CHAPTER_REWARD). */}
+            {!done && isChapterEnd(level.id) ? <Text style={styles.reward}>· Bonus chest</Text> : null}
             {done ? (
               <View style={styles.stars}>
                 {[1, 2, 3].map((i) => (

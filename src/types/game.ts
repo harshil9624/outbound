@@ -71,7 +71,7 @@ export type BoostKind = 'hint' | 'hammer' | 'life';
 /** Boosts the player holds for free (won from milestones); used before any coins are spent. */
 export type FreeBoosts = Record<BoostKind, number>;
 
-/** The chest on every 10th level (see economy/config LEVEL_CHEST). */
+/** The chest for completing a chapter (see economy/config CHAPTER_REWARD). */
 export interface MilestoneReward {
   kind: 'chest';
   coins: number;

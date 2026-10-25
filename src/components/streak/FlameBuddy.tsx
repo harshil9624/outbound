@@ -7,13 +7,19 @@ import { colors, palette } from '@/theme';
 export type FlameStage = 'ember' | 'small' | 'medium' | 'big' | 'crown';
 export type FlameMood = 'happy' | 'sleepy' | 'cold';
 
+/** The growth path after the ember: the streak length each stage starts at, and its name for kids. */
+export const FLAME_STAGES: readonly { stage: Exclude<FlameStage, 'ember'>; days: number; name: string }[] = [
+  { stage: 'small', days: 1, name: 'Spark' },
+  { stage: 'medium', days: 3, name: 'Flame' },
+  { stage: 'big', days: 7, name: 'Blaze' },
+  { stage: 'crown', days: 14, name: 'King' },
+];
+
 /** How big the flame has grown: it gets bigger the longer the streak, and wears a crown at two weeks. */
 export function flameStage(count: number): FlameStage {
-  if (count <= 0) return 'ember';
-  if (count < 3) return 'small';
-  if (count < 7) return 'medium';
-  if (count < 14) return 'big';
-  return 'crown';
+  let stage: FlameStage = 'ember';
+  for (const s of FLAME_STAGES) if (count >= s.days) stage = s.stage;
+  return stage;
 }
 
 const STAGE_SCALE: Record<FlameStage, number> = { ember: 0.62, small: 0.76, medium: 0.88, big: 1, crown: 1 };

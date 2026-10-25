@@ -19,7 +19,7 @@ mock.module('react-native-mmkv', () => ({
 }));
 
 const config = await import('../src/economy/config');
-const { calculateLevelReward, chestFor, dailyStreakBonus, levelBase, levelRewards } = await import('../src/economy/rewards');
+const { calculateLevelReward, chestFor, dailyStreakBonus, isChapterEnd, levelBase, levelRewards } = await import('../src/economy/rewards');
 const { usePlayerStore } = await import('../src/store/playerStore');
 const { buildLevelResult } = await import('../src/game/session/buildLevelResult');
 const { createGameState } = await import('../src/game/engine/createGameState');
@@ -40,15 +40,8 @@ describe('calculateLevelReward', () => {
     expect(calculateLevelReward(56, 3, 0)).toBe(60);
     expect(calculateLevelReward(70, 2, 0)).toBe(50);
   });
-  it('pays only the difference when a replay beats the old best', () => {
-    expect(calculateLevelReward(56, 3, 1)).toBe(60 - 40);
-    expect(calculateLevelReward(56, 2, 1)).toBe(50 - 40);
-    expect(calculateLevelReward(10, 3, 2)).toBe(15 - 13);
-    // First clear + every improvement adds up to exactly the 3-star reward.
-    expect(calculateLevelReward(40, 1, 0) + calculateLevelReward(40, 2, 1) + calculateLevelReward(40, 3, 2)).toBe(calculateLevelReward(40, 3, 0));
-  });
-  it('pays nothing for a replay that does not beat the best', () => {
-    for (const prev of [1, 2, 3] as const) for (const stars of [1, 2, 3] as const) if (stars <= prev) expect(calculateLevelReward(20, stars, prev)).toBe(0);
+  it('pays nothing for any replay, even one with more stars', () => {
+    for (const prev of [1, 2, 3] as const) for (const stars of [1, 2, 3] as const) expect(calculateLevelReward(20, stars, prev)).toBe(0);
   });
   it('reads every number from economy/config', () => {
     expect(levelBase(5)).toBe(config.LEVEL_REWARD_TIERS[0].base);
@@ -57,21 +50,22 @@ describe('calculateLevelReward', () => {
 });
 
 describe('chests and the daily bonus', () => {
-  it('puts a chest on every 10th level, the free boost rotating', () => {
-    expect(chestFor(9)).toBeNull();
-    expect(chestFor(10)).toEqual({ kind: 'chest', coins: 100, boosts: { hint: 0, hammer: 1, life: 0 } });
-    expect(chestFor(20)?.boosts).toEqual({ hint: 1, hammer: 0, life: 0 });
-    expect(chestFor(30)?.boosts).toEqual({ hint: 0, hammer: 0, life: 1 });
-    expect(chestFor(40)?.boosts.hammer).toBe(1);
+  it('puts a chest on the last level of each chapter: coins, 2 hints and 1 hammer', () => {
+    expect(chestFor(10)).toBeNull();
+    expect(chestFor(13)).toBeNull();
+    for (const id of [14, 28, 42, 56, 70]) {
+      expect(isChapterEnd(id)).toBe(true);
+      expect(chestFor(id)).toEqual({ kind: 'chest', coins: config.CHAPTER_REWARD.coins, boosts: { hint: 2, hammer: 1, life: 0 } });
+    }
   });
   it('pays 20 a day and 100 on every 7th day of a streak', () => {
     expect([1, 2, 6, 7, 8, 14].map(dailyStreakBonus)).toEqual([20, 20, 20, 100, 20, 100]);
   });
   it('pays the daily bonus once per day, and a chest once', () => {
-    const first = levelRewards(EMPTY, 10, 3, '2026-10-21');
+    const first = levelRewards(EMPTY, 14, 3, '2026-10-21');
     expect(first.chest).not.toBeNull();
     expect(first.dailyBonus).toBe(20);
-    const later = levelRewards({ ...EMPTY, chestsClaimed: [10], lastDailyBonusDay: '2026-10-21' }, 10, 3, '2026-10-21');
+    const later = levelRewards({ ...EMPTY, chestsClaimed: [14], lastDailyBonusDay: '2026-10-21' }, 14, 3, '2026-10-21');
     expect(later.chest).toBeNull();
     expect(later.dailyBonus).toBe(0);
   });
@@ -93,26 +87,31 @@ describe('paying a win is idempotent', () => {
 
   it('pays once, even if the same win is applied twice (double tap, re-render)', () => {
     const p = usePlayerStore.getState();
-    const result = buildLevelResult(won(10), { isFirstClear: true, ledger: p, today: '2026-10-21' });
-    p.applyLevelResult(result, 11);
-    usePlayerStore.getState().applyLevelResult(result, 11);
+    const result = buildLevelResult(won(14), { isFirstClear: true, ledger: p, today: '2026-10-21' });
+    p.applyLevelResult(result, 15);
+    usePlayerStore.getState().applyLevelResult(result, 15);
     const s = usePlayerStore.getState();
     expect(s.coins).toBe(result.coinsEarned);
-    expect(result.coinsEarned).toBe(calculateLevelReward(10, 3, 0) + config.LEVEL_CHEST.coins + config.DAILY_STREAK_BONUS.coins);
-    expect(s.freeBoosts.hammer).toBe(1);
-    expect(s.paidStars[10]).toBe(3);
-    expect(s.chestsClaimed).toEqual([10]);
+    expect(result.coinsEarned).toBe(calculateLevelReward(14, 3, 0) + config.CHAPTER_REWARD.coins + config.DAILY_STREAK_BONUS.coins);
+    expect(s.freeBoosts).toEqual({ hint: 2, hammer: 1, life: 0 });
+    expect(s.paidStars[14]).toBe(3);
+    expect(s.chestsClaimed).toEqual([14]);
   });
-  it('pays a replay only for the stars it improves', () => {
-    usePlayerStore.setState({ paidStars: { 56: 1 as StarCount }, completedLevels: [56], lastDailyBonusDay: '2026-10-21' });
+  it('pays nothing for a replay, even with more stars', () => {
+    usePlayerStore.setState({ paidStars: { 56: 1 as StarCount }, completedLevels: [56], chestsClaimed: [56], lastDailyBonusDay: '2026-10-21' });
     const result = buildLevelResult(won(56), { isFirstClear: false, ledger: usePlayerStore.getState(), today: '2026-10-21' });
-    expect(result.coinsEarned).toBe(60 - 40);
+    expect(result.coinsEarned).toBe(0);
+    expect(result.milestone).toBeNull();
     usePlayerStore.getState().applyLevelResult(result, null);
-    expect(usePlayerStore.getState().coins).toBe(20);
+    expect(usePlayerStore.getState().coins).toBe(0);
+  });
+  it('starts a new player with STARTING_COINS', () => {
+    usePlayerStore.getState().resetProgress();
+    expect(usePlayerStore.getState().coins).toBe(30);
   });
 });
 
-describe('save upgrade to v7', () => {
+describe('save upgrades', () => {
   it('marks what an existing player already earned as paid, so nothing is paid twice or lost', async () => {
     const opts = (usePlayerStore as unknown as { persist: { getOptions: () => { migrate: (p: unknown, v: number) => any } } }).persist.getOptions();
     const old = {
@@ -128,6 +127,23 @@ describe('save upgrade to v7', () => {
     expect(up.chestsClaimed).toEqual([10]);
     expect(up.lastDailyBonusDay).toBe('2026-10-20');
   });
+  it('v8 counts chapters already finished as paid, and keeps coins and boosts', () => {
+    const opts = (usePlayerStore as unknown as { persist: { getOptions: () => { migrate: (p: unknown, v: number) => any } } }).persist.getOptions();
+    const old = {
+      coins: 240,
+      completedLevels: [1, 10, 13, 14, 15, 20],
+      stars: {},
+      streak: { count: 1, best: 1, lastPlayedDay: '2026-10-20' },
+      freeBoosts: { hint: 1, hammer: 0, life: 0 },
+      paidStars: {},
+      chestsClaimed: [10, 20],
+      lastDailyBonusDay: '2026-10-20',
+    };
+    const up = opts.migrate(old, 7);
+    expect(up.coins).toBe(240);
+    expect(up.freeBoosts).toEqual(old.freeBoosts);
+    expect(up.chestsClaimed).toEqual([10, 20, 14]);
+  });
 });
 
 describe('full playthrough, all 70 levels (first clears + chests + starting coins)', () => {
@@ -135,8 +151,8 @@ describe('full playthrough, all 70 levels (first clears + chests + starting coin
     config.STARTING_COINS +
     LOCAL_LEVELS.filter((l) => l.id <= 70).reduce((sum, l) => sum + calculateLevelReward(l.id, stars, 0) + (chestFor(l.id)?.coins ?? 0), 0);
   it('matches the planned totals', () => {
-    expect(total(1)).toBe(2425);
-    expect(total(2)).toBe(2835);
-    expect(total(3)).toBe(3260);
+    expect(total(1)).toBe(2155);
+    expect(total(2)).toBe(2565);
+    expect(total(3)).toBe(2990);
   });
 });

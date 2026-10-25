@@ -2,9 +2,10 @@
  * Pure reward rules. The win screen (to show what was earned) and the player store (to pay it)
  * both call levelRewards with the same inputs, so what's shown is exactly what's paid.
  */
-import type { BoostKind, FreeBoosts, MilestoneReward, StarCount } from '../types/game';
+import type { MilestoneReward, StarCount } from '../types/game';
 import { registerPlayDay, type StreakState } from '../game/progression/streak';
-import { DAILY_STREAK_BONUS, LEVEL_CHEST, LEVEL_REWARD_TIERS, STAR_MULTIPLIER } from './config';
+import { CHAPTERS } from '../game/journey/chapters';
+import { CHAPTER_REWARD, DAILY_STREAK_BONUS, LEVEL_REWARD_TIERS, STAR_MULTIPLIER } from './config';
 
 /** The level's base reward, from its tier. */
 export function levelBase(levelId: number): number {
@@ -17,22 +18,21 @@ function starValue(levelId: number, stars: StarCount | 0): number {
 
 /**
  * Coins for clearing `levelId` with `stars`, given the best stars already paid for that level
- * (0 = never cleared). First clear: the full reward. A replay that beats the old best pays only
- * the difference. Anything else pays 0.
+ * (0 = never cleared). Paid once, on the first clear; replays pay 0.
  */
 export function calculateLevelReward(levelId: number, stars: StarCount, previousBestStars: StarCount | 0): number {
-  if (stars <= previousBestStars) return 0;
-  return starValue(levelId, stars) - starValue(levelId, previousBestStars);
+  return previousBestStars > 0 ? 0 : starValue(levelId, stars);
 }
 
-/** The chest a level holds (every 10th level), or null. */
+/** True for a chapter's last level: clearing it completes the chapter. */
+export function isChapterEnd(levelId: number): boolean {
+  return CHAPTERS.some((c) => c.levelIds[c.levelIds.length - 1] === levelId);
+}
+
+/** The chapter-completion chest a level holds (each chapter's last level), or null. */
 export function chestFor(levelId: number): MilestoneReward | null {
-  if (levelId % LEVEL_CHEST.everyLevels !== 0) return null;
-  const n = levelId / LEVEL_CHEST.everyLevels - 1;
-  const kind: BoostKind = LEVEL_CHEST.boostRotation[n % LEVEL_CHEST.boostRotation.length];
-  const boosts: FreeBoosts = { hint: 0, hammer: 0, life: 0 };
-  boosts[kind] = 1;
-  return { kind: 'chest', coins: LEVEL_CHEST.coins, boosts };
+  if (!isChapterEnd(levelId)) return null;
+  return { kind: 'chest', coins: CHAPTER_REWARD.coins, boosts: { ...CHAPTER_REWARD.boosts } };
 }
 
 /** Daily bonus for the day a streak reaches `streakCount` days. */
@@ -44,7 +44,7 @@ export function dailyStreakBonus(streakCount: number): number {
 export interface RewardLedger {
   /** Best stars already paid for, per level. */
   paidStars: Record<number, StarCount>;
-  /** Chest levels already paid out. */
+  /** Chest levels already paid out (chapter ends; every 10th level before save v8). */
   chestsClaimed: number[];
   /** The local day the daily streak bonus was last paid. */
   lastDailyBonusDay: string | null;
@@ -52,7 +52,7 @@ export interface RewardLedger {
 }
 
 export interface LevelRewards {
-  /** Coins for the level itself (0 on a replay that doesn't beat the best). */
+  /** Coins for the level itself (0 on a replay). */
   levelCoins: number;
   chest: MilestoneReward | null;
   dailyBonus: number;
